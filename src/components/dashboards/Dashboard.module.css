@@ -1,0 +1,10 @@
+.dashboard-notifications-grid {
+  background-color: light-dark(white, #404040) !important;
+}
+
+.dashboard-table-card,
+.dashboard-ai-console-card,
+.dashboard-system-events-card,
+.dashboard-card {
+  background-color: light-dark(red, #23272e) !important;
+}
