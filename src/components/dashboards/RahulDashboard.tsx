@@ -480,7 +480,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
       {/* Stats Cards */}
       <Grid className="dashboard-stats-grid">
         <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-          <Card p="lg" className="dashboard-card">
+          <Card withBorder p="lg" className="dashboard-card">
             <Text size="sm" c="dimmed" mb="xs">
               Total Devices
             </Text>
@@ -496,7 +496,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
           </Card>
         </Grid.Col>
         <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-          <Card p="lg" className="dashboard-card">
+          <Card withBorder  p="lg" className="dashboard-card">
             <Text size="sm" c="dimmed" mb="xs">
               Devices Online
             </Text>
@@ -511,7 +511,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
           </Card>
         </Grid.Col>
         <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-          <Card p="lg" className="dashboard-card">
+          <Card withBorder  p="lg" className="dashboard-card">
             <Text size="sm" c="dimmed" mb="xs">
               Devices at High Risk
             </Text>
@@ -526,7 +526,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
           </Card>
         </Grid.Col>
         <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-          <Card p="lg" className="dashboard-card">
+          <Card withBorder  p="lg" className="dashboard-card">
             <Text size="sm" c="dimmed" mb="xs">
               Warranty Expiring
             </Text>
@@ -661,6 +661,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
               records={atRiskDevices.slice((activePage - 1) * 10, activePage * 10)}
               totalRecords={atRiskDevices.length}
               recordsPerPage={10}
+              verticalSpacing="lg"
               page={activePage}
               onPageChange={setActivePage}
               noRecordsText="No devices at risk."
@@ -702,6 +703,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
               withTableBorder
               minHeight={392}
               striped
+              verticalSpacing="lg"
               noHeader={false}
               className="dashboard-datatable"
               scrollAreaProps={{ style: { maxHeight: 392, overflowY: 'auto' } }}
@@ -806,7 +808,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
       {/* AI Notifications and System Events */}
       <Grid className="dashboard-notifications-grid">
         <Grid.Col span={{ base: 12, md: 6 }}>
-          <Card p="lg" className="dashboard-ai-console-card" bg="light-dark(red, ##2E2E2E)">
+          <Card withBorder  p="lg" className="dashboard-ai-console-card" bg="light-dark(red, ##2E2E2E)">
             <Group justify="space-between" mb="md" className="dashboard-ai-console-header-group">
               <Group>
                 <IconBrain size={20} color="#6366f1" />
@@ -835,7 +837,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
           </Card>
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6 }}>
-          <Card p="lg" className="dashboard-system-events-card">
+          <Card withBorder  p="lg" className="dashboard-system-events-card">
             <Group justify="space-between" mb="md" className="dashboard-system-events-header-group">
               <Group>
                 <IconActivity size={20} color="#8b5cf6" />

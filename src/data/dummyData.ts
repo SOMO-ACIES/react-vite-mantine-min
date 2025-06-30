@@ -76,6 +76,7 @@ export interface Analytics {
 
 export const dummyData = {
   tickets: [
+    // Realistic sample tickets
     {
       id: 'T-2367',
       device: 'Server #SRV-2245',
@@ -140,7 +141,36 @@ export const dummyData = {
       createdAt: '2024-01-14T14:10:00Z',
       updatedAt: '2024-01-15T10:30:00Z',
       warranty: false
-    }
+    },
+    // --- Generated demo tickets ---
+    ...Array.from({ length: 100 }, (_, i) => {
+      const priorities = ['High', 'Medium', 'Low'] as const;
+      const statuses = ['Analysis', 'Critical', 'Assigned', 'Resolved', 'Waiting'] as const;
+      const customers = ['Acme Corp.', 'Global Finance', 'Design Studios Ltd', 'TechSolutions Inc.', 'HealthCare Plus', 'NextGen IT', 'DataWorks', 'CloudNet', 'SecureSys', 'MediTech'];
+      const devices = ['Server', 'NAS', 'Workstation', 'Storage Array', 'Firewall', 'Router', 'Switch', 'Backup Appliance'];
+      const issues = ['Disk error prediction', 'Multiple disk failures', 'SSD degradation', 'Disk replacement', 'RAID controller failure', 'Power supply issue', 'Cooling problem', 'Firmware update', 'Network latency', 'Unauthorized access'];
+      const idx = i + 10;
+      return {
+        id: `T-${2400 + i}`,
+        device: `${devices[i % devices.length]} #${1000 + idx}`,
+        customer: customers[i % customers.length],
+        issue: issues[i % issues.length],
+        status: statuses[i % statuses.length],
+        priority: priorities[i % priorities.length],
+        createdAt: `2024-01-${String(10 + (i % 20)).padStart(2, '0')}T${String(8 + (i % 10)).padStart(2, '0')}:00:00Z`,
+        updatedAt: `2024-01-${String(10 + (i % 20)).padStart(2, '0')}T${String(10 + (i % 10)).padStart(2, '0')}:30:00Z`,
+        warranty: i % 2 === 0,
+        confidence: 60 + (i % 40),
+        telemetry: {
+          readErrorRate: 10 + (i % 90),
+          temperature: 30 + (i % 40),
+          reallocatedSectors: i % 50,
+          spinRetryCount: i % 20,
+          powerOnHours: 1000 + (i * 10),
+          smartStatus: (i % 5 === 0) ? 'Failing' : 'OK'
+        }
+      };
+    })
   ] as Ticket[],
 
   devices: [
