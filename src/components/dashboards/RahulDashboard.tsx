@@ -22,7 +22,6 @@ import {
   Grid,
   Group,
   Modal,
-  Progress,
   RingProgress,
   ScrollArea,
   Select,
@@ -30,18 +29,19 @@ import {
   Tabs,
   Text,
 } from '@mantine/core';
-// import { DataTable } from '@mantine/datatable';
 import { useDisclosure } from '@mantine/hooks';
-import type { Device } from '../../data/dummyData';
+import { mockDevices } from '../../data/mockDataO';
 
 import './Dashboard.module.css';
 import 'mantine-datatable/styles.css';
 
 interface RahulDashboardProps {
-  data: any;
+  // data: any; // No longer needed
 }
 
-const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
+type Device = (typeof mockDevices)[number];
+
+const RahulDashboard: React.FC<RahulDashboardProps> = () => {
   const [opened, { open, close }] = useDisclosure(false);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -49,7 +49,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
   const [activePage, setActivePage] = useState(1);
   const [allDevicesPage, setAllDevicesPage] = useState(1);
   const [locationFilter, setLocationFilter] = useState<string>('All Locations');
-  const [departmentFilter, setDepartmentFilter] = useState<string>('All Departments');
+  const [brandFilter, setBrandFilter] = useState<string>('All Brands');
 
   const handleDeviceView = (device: Device) => {
     setSelectedDevice(device);
@@ -57,17 +57,42 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
   };
 
   const handleNotifyOwner = () => {
-    const subject = `Device Alert: ${selectedDevice?.name}`;
-    const body = `Device ${selectedDevice?.name} (${selectedDevice?.model}) requires attention.\n\nHealth Score: ${selectedDevice?.healthScore}%\nRisk Level: ${selectedDevice?.riskLevel}\nLocation: ${selectedDevice?.location}`;
+    const subject = `Device Alert: ${selectedDevice?.device_name}`;
+    const body = `Device ${selectedDevice?.device_name} (${selectedDevice?.device_modeltype}) requires attention.\n\nSerial: ${selectedDevice?.device_id}\nBrand: ${selectedDevice?.device_brand}\nLocation: ${selectedDevice?.region_name}`;
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
   };
 
   const handleGenerateTicket = () => {
     // This would typically create a new ticket in the system
-    console.log('Generating ticket for device:', selectedDevice?.name);
+    console.log('Generating ticket for device:', selectedDevice?.device_name);
     close();
   };
 
+  // For demonstration, let's define a simple risk and health score logic
+  const getRiskLevel = (device: Device) => {
+    if (device.device_enclosuretype === 'Laptop' && device.device_bios_version < '2.0.0') {
+      return 'High';
+    }
+    if (device.device_enclosuretype === 'Desktop') {
+      return 'Medium';
+    }
+    return 'Low';
+  };
+  const getHealthScore = (device: Device) => {
+    const purchase = new Date(device.device_purchase_date).getTime();
+    const now = Date.now();
+    const months = (now - purchase) / (1000 * 60 * 60 * 24 * 30);
+    if (months < 6) {
+      return 95;
+    }
+    if (months < 12) {
+      return 80;
+    }
+    if (months < 18) {
+      return 65;
+    }
+    return 50;
+  };
   const getRiskColor = (risk: string) => {
     switch (risk) {
       case 'High':
@@ -80,7 +105,6 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
         return 'gray';
     }
   };
-
   const getHealthScoreColor = (score: number) => {
     if (score >= 80) {
       return 'green';
@@ -93,7 +117,6 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
     }
     return 'red';
   };
-
   const getSystemEventIcon = (type: string) => {
     switch (type) {
       case 'defect':
@@ -107,169 +130,30 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
     }
   };
 
-  // Extended device data for demonstration
-  const allDevices = [
-    ...data.devices,
-    {
-      id: 'WS-3456',
-      name: 'Design Workstation',
-      model: 'Dell Precision 7760',
-      serial: 'SN98765432',
-      customer: 'Creative Studios',
-      location: 'Design Department',
-      healthScore: 45,
-      riskLevel: 'High',
-      lastSeen: '2024-01-15T13:20:00Z',
-      warranty: { status: true, expiryDate: '2024-06-30' },
-      telemetry: {
-        temperature: 58,
-        diskUsage: 92,
-        cpuUsage: 78,
-        memoryUsage: 85,
-        powerConsumption: 320,
-      },
-    },
-    {
-      id: 'SRV-7890',
-      name: 'Email Server',
-      model: 'HP ProLiant DL380',
-      serial: 'SN11223344',
-      customer: 'Corporate IT',
-      location: 'Data Center 1',
-      healthScore: 72,
-      riskLevel: 'Medium',
-      lastSeen: '2024-01-15T14:30:00Z',
-      warranty: { status: false, expiryDate: '2023-11-15' },
-      telemetry: {
-        temperature: 42,
-        diskUsage: 68,
-        cpuUsage: 45,
-        memoryUsage: 62,
-        powerConsumption: 280,
-      },
-    },
-    // Additional demo devices
-    {
-      id: 'LT-1001',
-      name: 'Finance Laptop',
-      model: 'Lenovo ThinkPad X1',
-      serial: 'SN55667788',
-      customer: 'Finance Dept',
-      location: 'Branch Office',
-      healthScore: 88,
-      riskLevel: 'Low',
-      lastSeen: '2024-01-15T09:10:00Z',
-      warranty: { status: true, expiryDate: '2025-03-12' },
-      telemetry: {
-        temperature: 36,
-        diskUsage: 55,
-        cpuUsage: 22,
-        memoryUsage: 40,
-        powerConsumption: 65,
-      },
-    },
-    {
-      id: 'SRV-2222',
-      name: 'Backup Server',
-      model: 'Dell PowerEdge R740',
-      serial: 'SN99887766',
-      customer: 'Corporate IT',
-      location: 'Data Center 3',
-      healthScore: 61,
-      riskLevel: 'Medium',
-      lastSeen: '2024-01-15T12:00:00Z',
-      warranty: { status: true, expiryDate: '2024-12-01' },
-      telemetry: {
-        temperature: 48,
-        diskUsage: 80,
-        cpuUsage: 55,
-        memoryUsage: 70,
-        powerConsumption: 210,
-      },
-    },
-    {
-      id: 'WS-7891',
-      name: 'Graphics Workstation',
-      model: 'Apple Mac Studio',
-      serial: 'SN44556677',
-      customer: 'Creative Studios',
-      location: 'Design Department',
-      healthScore: 95,
-      riskLevel: 'Low',
-      lastSeen: '2024-01-15T15:45:00Z',
-      warranty: { status: true, expiryDate: '2026-01-20' },
-      telemetry: {
-        temperature: 40,
-        diskUsage: 30,
-        cpuUsage: 18,
-        memoryUsage: 25,
-        powerConsumption: 120,
-      },
-    },
-    {
-      id: 'SRV-3333',
-      name: 'Web Server',
-      model: 'Supermicro SYS-1029U',
-      serial: 'SN22334455',
-      customer: 'Web Team',
-      location: 'Data Center 1',
-      healthScore: 77,
-      riskLevel: 'Medium',
-      lastSeen: '2024-01-15T11:25:00Z',
-      warranty: { status: false, expiryDate: '2023-08-10' },
-      telemetry: {
-        temperature: 50,
-        diskUsage: 60,
-        cpuUsage: 35,
-        memoryUsage: 50,
-        powerConsumption: 180,
-      },
-    },
-    {
-      id: 'LT-2002',
-      name: 'HR Laptop',
-      model: 'HP EliteBook 840',
-      serial: 'SN33445566',
-      customer: 'HR Dept',
-      location: 'Branch Office',
-      healthScore: 82,
-      riskLevel: 'Low',
-      lastSeen: '2024-01-15T10:05:00Z',
-      warranty: { status: true, expiryDate: '2025-07-18' },
-      telemetry: {
-        temperature: 34,
-        diskUsage: 40,
-        cpuUsage: 20,
-        memoryUsage: 35,
-        powerConsumption: 60,
-      },
-    },
-    {
-      id: 'SRV-4444',
-      name: 'Database Server',
-      model: 'Cisco UCS C220',
-      serial: 'SN66778899',
-      customer: 'Corporate IT',
-      location: 'Data Center 3',
-      healthScore: 54,
-      riskLevel: 'High',
-      lastSeen: '2024-01-15T16:00:00Z',
-      warranty: { status: false, expiryDate: '2022-10-05' },
-      telemetry: {
-        temperature: 62,
-        diskUsage: 95,
-        cpuUsage: 85,
-        memoryUsage: 90,
-        powerConsumption: 350,
-      },
-    },
-  ];
+  // Filtering logic
+  const filteredDevices = mockDevices.filter((device) => {
+    const locationMatch =
+      locationFilter === 'All Locations' || device.region_name === locationFilter;
+    const brandMatch = brandFilter === 'All Brands' || device.device_brand === brandFilter;
+    return locationMatch && brandMatch;
+  });
 
-  const atRiskDevices = allDevices.filter(
-    (device) => device.riskLevel === 'High' || device.riskLevel === 'Medium'
+  // For at-risk, use our getRiskLevel logic
+  const atRiskDevices = filteredDevices.filter(
+    (device) => getRiskLevel(device) === 'High' || getRiskLevel(device) === 'Medium'
   );
 
-  // Console-style AI Notifications data (last 50 notifications)
+  // For filter dropdowns
+  const locationOptions = [
+    'All Locations',
+    ...Array.from(new Set(mockDevices.map((d) => d.region_name))).sort(),
+  ];
+  const brandOptions = [
+    'All Brands',
+    ...Array.from(new Set(mockDevices.map((d) => d.device_brand))).sort(),
+  ];
+
+  // Demo notifications/events (unchanged)
   const consoleNotifications = [
     {
       id: 1,
@@ -392,8 +276,6 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
       message: 'Multiple failed ticket creation attempts detected in last 5 mins',
     },
   ];
-
-  // System Events data
   const systemEvents = [
     {
       id: 1,
@@ -423,7 +305,6 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
       riskLevel: 'Low',
     },
   ];
-
   const getConsoleColor = (type: string) => {
     switch (type) {
       case 'success':
@@ -438,7 +319,6 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
         return '#6b7280'; // gray
     }
   };
-
   const getEventCardColor = (riskLevel: string) => {
     switch (riskLevel) {
       case 'High':
@@ -478,45 +358,41 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
       </Group>
 
       {/* Stats Cards */}
-      <Grid className="dashboard-stats-grid">
-        <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-          <Card withBorder p="lg" className="dashboard-card">
+      <Grid className="dashboard-stats-grid" align="stretch">
+        <Grid.Col span={{ base: 12, sm: 6, md: 3 }} h="100%">
+          <Card withBorder p="lg" className="dashboard-card" h="100%">
             <Text size="sm" c="dimmed" mb="xs">
               Total Devices
             </Text>
             <Text size="xl" fw={700} className="dashboard-card-value">
-              1,247
+              {/* {mockDevices.length} */}
+              20,000
             </Text>
             <Group gap="xs" mt="xs">
               <IconTrendingUp size={16} color="green" />
               <Text size="sm" c="green">
-                +12 this week
+                +{Math.floor(Math.random() * 20) + 1} this month
               </Text>
             </Group>
           </Card>
         </Grid.Col>
-        <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-          <Card withBorder  p="lg" className="dashboard-card">
+        <Grid.Col span={{ base: 12, sm: 6, md: 3 }} h="100%">
+          <Card withBorder p="lg" className="dashboard-card" style={{ height: '135px' }}>
             <Text size="sm" c="dimmed" mb="xs">
-              Devices Online
+              Brands
             </Text>
             <Text size="xl" fw={700} className="dashboard-card-value">
-              1,198
+              {brandOptions.length - 1}
             </Text>
-            <Group gap="xs" mt="xs">
-              <Text size="sm" c="green">
-                96.1% uptime
-              </Text>
-            </Group>
           </Card>
         </Grid.Col>
-        <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-          <Card withBorder  p="lg" className="dashboard-card">
+        <Grid.Col span={{ base: 12, sm: 6, md: 3 }} h="100%">
+          <Card withBorder p="lg" className="dashboard-card" h="100%">
             <Text size="sm" c="dimmed" mb="xs">
-              Devices at High Risk
+              At Risk
             </Text>
             <Text size="xl" fw={700} c="red">
-              23
+              {atRiskDevices.length}
             </Text>
             <Group gap="xs" mt="xs">
               <Text size="sm" c="red">
@@ -525,17 +401,17 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
             </Group>
           </Card>
         </Grid.Col>
-        <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-          <Card withBorder  p="lg" className="dashboard-card">
+        <Grid.Col span={{ base: 12, sm: 6, md: 3 }} h="100%">
+          <Card withBorder p="lg" className="dashboard-card" h="100%">
             <Text size="sm" c="dimmed" mb="xs">
-              Warranty Expiring
+              Locations
             </Text>
             <Text size="xl" fw={700} c="orange">
-              87
+              {locationOptions.length - 1}
             </Text>
             <Group gap="xs" mt="xs">
               <Text size="sm" c="orange">
-                Next 30 days
+                Unique regions
               </Text>
             </Group>
           </Card>
@@ -579,50 +455,62 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
                   render: (device: Device) => (
                     <Stack gap={0} className="dashboard-table-device-stack">
                       <Text size="sm" fw={500} className="dashboard-table-device-name">
-                        {device.name}
+                        {device.device_name}
                       </Text>
                       <Text size="xs" c="dimmed">
-                        {device.model}
+                        {device.device_modeltype}
                       </Text>
                     </Stack>
                   ),
                 },
                 {
-                  accessor: 'customer',
-                  title: 'Customer',
+                  accessor: 'brand',
+                  title: 'Brand',
                   render: (device: Device) => (
                     <Text size="sm" className="dashboard-table-customer">
-                      {device.customer}
+                      {device.device_brand}
+                    </Text>
+                  ),
+                },
+                {
+                  accessor: 'region',
+                  title: 'Region',
+                  render: (device: Device) => (
+                    <Text size="sm" className="dashboard-table-location">
+                      {device.region_name}
                     </Text>
                   ),
                 },
                 {
                   accessor: 'healthScore',
                   title: 'Health Score',
-                  render: (device: Device) => (
-                    <Group gap="xs">
-                      <RingProgress
-                        size={40}
-                        thickness={4}
-                        sections={[
-                          {
-                            value: device.healthScore,
-                            color: getHealthScoreColor(device.healthScore),
-                          },
-                        ]}
-                      />
-                      <Text size="sm" fw={500} className="dashboard-table-healthscore">
-                        {device.healthScore}%
-                      </Text>
-                    </Group>
-                  ),
+                  render: (device: Device) => {
+                    const score = getHealthScore(device);
+                    return (
+                      <Group gap="xs">
+                        <RingProgress
+                          size={40}
+                          thickness={4}
+                          sections={[
+                            {
+                              value: score,
+                              color: getHealthScoreColor(score),
+                            },
+                          ]}
+                        />
+                        <Text size="sm" fw={500} className="dashboard-table-healthscore">
+                          {score}%
+                        </Text>
+                      </Group>
+                    );
+                  },
                 },
                 {
                   accessor: 'riskLevel',
                   title: 'Risk Level',
                   render: (device: Device) => (
-                    <Badge color={getRiskColor(device.riskLevel)} size="sm">
-                      {device.riskLevel}
+                    <Badge color={getRiskColor(getRiskLevel(device))} size="sm">
+                      {getRiskLevel(device)}
                     </Badge>
                   ),
                 },
@@ -631,7 +519,9 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
                   title: 'Last Seen',
                   render: (device: Device) => (
                     <Text size="sm" className="dashboard-table-lastseen">
-                      {new Date(device.lastSeen).toLocaleTimeString()}
+                      {device.device_context_datetime
+                        ? new Date(device.device_context_datetime).toLocaleString()
+                        : '-'}
                     </Text>
                   ),
                 },
@@ -675,13 +565,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
           <Tabs.Panel value="all-devices">
             <Group gap="md" mt="md" mb="md" className="dashboard-table-filters-group">
               <Select
-                data={[
-                  'All Locations',
-                  'Data Center 1',
-                  'Data Center 3',
-                  'Design Department',
-                  'Branch Office',
-                ]}
+                data={locationOptions}
                 value={locationFilter}
                 onChange={(value) => setLocationFilter(value || 'All Locations')}
                 placeholder="Filter by Location"
@@ -689,10 +573,10 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
                 className="dashboard-table-filter-select"
               />
               <Select
-                data={['All Departments', 'IT Operations', 'Design', 'Finance', 'Corporate']}
-                value={departmentFilter}
-                onChange={(value) => setDepartmentFilter(value || 'All Departments')}
-                placeholder="Filter by Department"
+                data={brandOptions}
+                value={brandFilter}
+                onChange={(value) => setBrandFilter(value || 'All Brands')}
+                placeholder="Filter by Brand"
                 size="sm"
                 className="dashboard-table-filter-select"
               />
@@ -714,56 +598,70 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
                   render: (device: Device) => (
                     <Stack gap={0} className="dashboard-table-device-stack">
                       <Text size="sm" fw={500} className="dashboard-table-device-name">
-                        {device.name}
+                        {device.device_name}
                       </Text>
                       <Text size="xs" c="dimmed">
-                        {device.model}
+                        {device.device_modeltype}
                       </Text>
                     </Stack>
                   ),
                 },
                 {
-                  accessor: 'customer',
-                  title: 'Customer',
+                  accessor: 'brand',
+                  title: 'Brand',
                   render: (device: Device) => (
-                    <Text className="dashboard-table-customer">{device.customer}</Text>
+                    <Text className="dashboard-table-customer">{device.device_brand}</Text>
                   ),
                 },
                 {
-                  accessor: 'location',
-                  title: 'Location',
+                  accessor: 'region',
+                  title: 'Region',
                   render: (device: Device) => (
-                    <Text className="dashboard-table-location">{device.location}</Text>
+                    <Text className="dashboard-table-location">{device.region_name}</Text>
                   ),
                 },
                 {
                   accessor: 'healthScore',
                   title: 'Health Score',
-                  render: (device: Device) => (
-                    <Group gap="xs">
-                      <RingProgress
-                        size={40}
-                        thickness={4}
-                        sections={[
-                          {
-                            value: device.healthScore,
-                            color: getHealthScoreColor(device.healthScore),
-                          },
-                        ]}
-                      />
-                      <Text size="sm" fw={500} className="dashboard-table-healthscore">
-                        {device.healthScore}%
-                      </Text>
-                    </Group>
-                  ),
+                  render: (device: Device) => {
+                    const score = getHealthScore(device);
+                    return (
+                      <Group gap="xs">
+                        <RingProgress
+                          size={40}
+                          thickness={4}
+                          sections={[
+                            {
+                              value: score,
+                              color: getHealthScoreColor(score),
+                            },
+                          ]}
+                        />
+                        <Text size="sm" fw={500} className="dashboard-table-healthscore">
+                          {score}%
+                        </Text>
+                      </Group>
+                    );
+                  },
                 },
                 {
                   accessor: 'riskLevel',
                   title: 'Risk Level',
                   render: (device: Device) => (
-                    <Badge color={getRiskColor(device.riskLevel)} size="sm">
-                      {device.riskLevel}
+                    <Badge color={getRiskColor(getRiskLevel(device))} size="sm">
+                      {getRiskLevel(device)}
                     </Badge>
+                  ),
+                },
+                {
+                  accessor: 'lastSeen',
+                  title: 'Last Seen',
+                  render: (device: Device) => (
+                    <Text size="sm" className="dashboard-table-lastseen">
+                      {device.device_context_datetime
+                        ? new Date(device.device_context_datetime).toLocaleString()
+                        : '-'}
+                    </Text>
                   ),
                 },
                 {
@@ -789,8 +687,8 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
                   ),
                 },
               ]}
-              records={allDevices.slice((allDevicesPage - 1) * 10, allDevicesPage * 10)}
-              totalRecords={allDevices.length}
+              records={filteredDevices.slice((allDevicesPage - 1) * 10, allDevicesPage * 10)}
+              totalRecords={filteredDevices.length}
               recordsPerPage={10}
               page={allDevicesPage}
               onPageChange={setAllDevicesPage}
@@ -798,7 +696,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
             />
             <Group justify="space-between" mt="md">
               <Text size="sm" c="dimmed">
-                Showing {allDevices.length} of 1,247 devices
+                Showing {filteredDevices.length} of {mockDevices.length} devices
               </Text>
             </Group>
           </Tabs.Panel>
@@ -808,12 +706,17 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
       {/* AI Notifications and System Events */}
       <Grid className="dashboard-notifications-grid">
         <Grid.Col span={{ base: 12, md: 6 }}>
-          <Card withBorder  p="lg" className="dashboard-ai-console-card" bg="light-dark(red, ##2E2E2E)">
+          <Card
+            withBorder
+            p="lg"
+            className="dashboard-ai-console-card"
+            bg="light-dark(red, ##2E2E2E)"
+          >
             <Group justify="space-between" mb="md" className="dashboard-ai-console-header-group">
               <Group>
                 <IconBrain size={20} color="#6366f1" />
                 <Text fw={600} className="dashboard-ai-console-title">
-                  AI Agent Console
+                  AI Agent Live Feed
                 </Text>
               </Group>
               <Badge color="blue" variant="light">
@@ -837,12 +740,12 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
           </Card>
         </Grid.Col>
         <Grid.Col span={{ base: 12, md: 6 }}>
-          <Card withBorder  p="lg" className="dashboard-system-events-card">
+          <Card withBorder p="lg" className="dashboard-system-events-card">
             <Group justify="space-between" mb="md" className="dashboard-system-events-header-group">
               <Group>
                 <IconActivity size={20} color="#8b5cf6" />
                 <Text fw={600} className="dashboard-system-events-title">
-                  Recent System Events
+                  AI Error Console
                 </Text>
               </Group>
               <Badge color="green" variant="light">
@@ -891,7 +794,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
       <Modal
         opened={opened}
         onClose={close}
-        title={selectedDevice ? `${selectedDevice.name} - Details` : ''}
+        title={selectedDevice ? `${selectedDevice.device_name} - Details` : ''}
         size="xl"
         className="dashboard-device-modal"
       >
@@ -904,16 +807,16 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
                     Device Information
                   </Text>
                   <Text size="sm" className="dashboard-device-info-model">
-                    <strong>Model:</strong> {selectedDevice.model}
+                    <strong>Model:</strong> {selectedDevice.device_modeltype}
                   </Text>
                   <Text size="sm" className="dashboard-device-info-serial">
-                    <strong>Serial:</strong> {selectedDevice.serial}
+                    <strong>Serial:</strong> {selectedDevice.device_id}
                   </Text>
                   <Text size="sm" className="dashboard-device-info-customer">
-                    <strong>Customer:</strong> {selectedDevice.customer}
+                    <strong>Customer:</strong> {selectedDevice.customer_id}
                   </Text>
                   <Text size="sm" className="dashboard-device-info-location">
-                    <strong>Location:</strong> {selectedDevice.location}
+                    <strong>Location:</strong> {selectedDevice.region_name}
                   </Text>
                 </Stack>
               </Grid.Col>
@@ -931,25 +834,25 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
                       thickness={4}
                       sections={[
                         {
-                          value: selectedDevice.healthScore,
-                          color: getHealthScoreColor(selectedDevice.healthScore),
+                          value: getHealthScore(selectedDevice),
+                          color: getHealthScoreColor(getHealthScore(selectedDevice)),
                         },
                       ]}
                     />
                     <Text size="sm" fw={500} className="dashboard-device-status-healthscore">
-                      {selectedDevice.healthScore}%
+                      {getHealthScore(selectedDevice)}%
                     </Text>
                   </Group>
                   <Text size="sm" className="dashboard-device-status-risk">
                     <strong>Risk Level:</strong>{' '}
-                    <Badge color={getRiskColor(selectedDevice.riskLevel)} size="sm">
-                      {selectedDevice.riskLevel}
+                    <Badge color={getRiskColor(getRiskLevel(selectedDevice))} size="sm">
+                      {getRiskLevel(selectedDevice)}
                     </Badge>
                   </Text>
                   <Text size="sm" className="dashboard-device-status-warranty">
-                    <strong>Warranty:</strong>{' '}
-                    <Badge color={selectedDevice.warranty.status ? 'green' : 'red'} size="sm">
-                      {selectedDevice.warranty.status ? 'Active' : 'Expired'}
+                    <strong>BIOS Version:</strong>{' '}
+                    <Badge color="blue" size="sm">
+                      {selectedDevice.device_bios_version}
                     </Badge>
                   </Text>
                 </Stack>
@@ -962,114 +865,81 @@ const RahulDashboard: React.FC<RahulDashboardProps> = ({ data }) => {
             >
               <Tabs.List>
                 <Tabs.Tab value="overview">Overview</Tabs.Tab>
-                <Tabs.Tab value="telemetry">Telemetry</Tabs.Tab>
-                <Tabs.Tab value="history">History</Tabs.Tab>
+                <Tabs.Tab value="os">OS</Tabs.Tab>
+                {/* <Tabs.Tab value="history">History</Tabs.Tab> */}
               </Tabs.List>
               <Tabs.Panel value="overview">
                 <Stack gap="lg" pt="lg" className="dashboard-device-modal-overview-stack">
                   <Card p="md" className="dashboard-device-modal-overview-card">
                     <Text fw={600} mb="md" className="dashboard-device-modal-overview-title">
-                      Current Performance
+                      Current Info
                     </Text>
                     <Grid>
                       <Grid.Col span={6}>
                         <Stack gap="sm">
-                          <div>
-                            <Group justify="space-between" mb="xs">
-                              <Text size="sm" className="dashboard-device-modal-overview-cpu-label">
-                                CPU Usage
-                              </Text>
-                              <Text
-                                size="sm"
-                                fw={500}
-                                className="dashboard-device-modal-overview-cpu-value"
-                              >
-                                {selectedDevice.telemetry.cpuUsage}%
-                              </Text>
-                            </Group>
-                            <Progress value={selectedDevice.telemetry.cpuUsage} color="blue" />
-                          </div>
-                          <div>
-                            <Group justify="space-between" mb="xs">
-                              <Text
-                                size="sm"
-                                className="dashboard-device-modal-overview-memory-label"
-                              >
-                                Memory Usage
-                              </Text>
-                              <Text
-                                size="sm"
-                                fw={500}
-                                className="dashboard-device-modal-overview-memory-value"
-                              >
-                                {selectedDevice.telemetry.memoryUsage}%
-                              </Text>
-                            </Group>
-                            <Progress value={selectedDevice.telemetry.memoryUsage} color="orange" />
-                          </div>
+                          <Text size="sm">
+                            <strong>Brand:</strong> {selectedDevice.device_brand}
+                          </Text>
+                          <Text size="sm">
+                            <strong>Family:</strong> {selectedDevice.device_family}
+                          </Text>
+                          <Text size="sm">
+                            <strong>Enclosure:</strong> {selectedDevice.device_enclosuretype}
+                          </Text>
+                          <Text size="sm">
+                            <strong>Purchase Date:</strong> {selectedDevice.device_purchase_date}
+                          </Text>
                         </Stack>
                       </Grid.Col>
                       <Grid.Col span={6}>
                         <Stack gap="sm">
-                          <div>
-                            <Group justify="space-between" mb="xs">
-                              <Text
-                                size="sm"
-                                className="dashboard-device-modal-overview-disk-label"
-                              >
-                                Disk Usage
-                              </Text>
-                              <Text
-                                size="sm"
-                                fw={500}
-                                className="dashboard-device-modal-overview-disk-value"
-                              >
-                                {selectedDevice.telemetry.diskUsage}%
-                              </Text>
-                            </Group>
-                            <Progress value={selectedDevice.telemetry.diskUsage} color="teal" />
-                          </div>
-                          <div>
-                            <Group justify="space-between" mb="xs">
-                              <Text
-                                size="sm"
-                                className="dashboard-device-modal-overview-temp-label"
-                              >
-                                Temperature
-                              </Text>
-                              <Text
-                                size="sm"
-                                fw={500}
-                                className="dashboard-device-modal-overview-temp-value"
-                              >
-                                {selectedDevice.telemetry.temperature}°C
-                              </Text>
-                            </Group>
-                            <Progress
-                              value={(selectedDevice.telemetry.temperature / 100) * 100}
-                              color="red"
-                            />
-                          </div>
+                          <Text size="sm">
+                            <strong>BIOS Version:</strong> {selectedDevice.device_bios_version}
+                          </Text>
+                          <Text size="sm">
+                            <strong>EC Version:</strong> {selectedDevice.device_ec_version}
+                          </Text>
+                          <Text size="sm">
+                            <strong>SMBIOS Version:</strong> {selectedDevice.device_smbios_version}
+                          </Text>
+                          <Text size="sm">
+                            <strong>Subbrand:</strong> {selectedDevice.device_subbrand}
+                          </Text>
                         </Stack>
                       </Grid.Col>
                     </Grid>
                   </Card>
                 </Stack>
               </Tabs.Panel>
-              <Tabs.Panel value="telemetry">
-                <Stack gap="lg" pt="lg" className="dashboard-device-modal-telemetry-stack">
-                  <Text className="dashboard-device-modal-telemetry-placeholder">
-                    Real-time telemetry data and metrics would be displayed here.
-                  </Text>
+              <Tabs.Panel value="os">
+                <Stack gap="lg" pt="lg" className="dashboard-device-modal-os-stack">
+                  <Card p="md">
+                    <Text fw={600} mb="md">
+                      Operating System
+                    </Text>
+                    <Text size="sm" mb="xs">
+                      <strong>OS Name:</strong> {selectedDevice.os_name}
+                    </Text>
+                    <Text size="sm" mb="xs">
+                      <strong>OS Version:</strong> {selectedDevice.os_version}
+                    </Text>
+                    <Text size="sm" mb="xs">
+                      <strong>OS Language:</strong> {selectedDevice.os_language}
+                    </Text>
+                    <Text size="sm">
+                      <strong>OS Update:</strong> {selectedDevice.os_update_title} -{' '}
+                      {selectedDevice.os_update_description}
+                    </Text>
+                  </Card>
                 </Stack>
               </Tabs.Panel>
-              <Tabs.Panel value="history">
+              {/* <Tabs.Panel value="history">
                 <Stack gap="lg" pt="lg" className="dashboard-device-modal-history-stack">
                   <Text className="dashboard-device-modal-history-placeholder">
                     Historical data and maintenance records would be shown here.
                   </Text>
                 </Stack>
-              </Tabs.Panel>
+              </Tabs.Panel> */}
             </Tabs>
             <Group justify="flex-end" gap="md" className="dashboard-device-modal-actions-group">
               <Button

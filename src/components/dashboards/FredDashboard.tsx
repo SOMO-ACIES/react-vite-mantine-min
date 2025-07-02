@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  IconBrain,
   IconBuilding,
   IconEye,
   IconMail,
@@ -9,7 +10,7 @@ import {
   IconTrendingUp,
   IconUsers,
 } from '@tabler/icons-react';
-import { PieChart } from '@mantine/charts';
+import { DataTable } from 'mantine-datatable';
 import {
   ActionIcon,
   Avatar,
@@ -23,7 +24,6 @@ import {
   ScrollArea,
   Select,
   Stack,
-  Table,
   Tabs,
   Text,
 } from '@mantine/core';
@@ -34,10 +34,158 @@ interface FredDashboardProps {
   data: any;
 }
 
+interface CustomerActivity {
+  id: number;
+  type: 'resolved' | 'new' | 'escalation' | 'followup' | 'maintenance' | 'upgrade';
+  title: string;
+  customer: string;
+  description: string;
+  time: string;
+  priority: 'High' | 'Medium' | 'Low';
+  status: string;
+  assignedTo?: string;
+  satisfaction?: number;
+}
+
 const FredDashboard: React.FC<FredDashboardProps> = ({ data }) => {
   const [opened, { open, close }] = useDisclosure(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const [supportLevelFilter, setSupportLevelFilter] = useState<string>('All Support Levels');
+  const [locationFilter, setLocationFilter] = useState<string>('All Locations');
+  const [activePage, setActivePage] = useState(1);
+  const [agentErrors, setAgentErrors] = useState([
+    { time: '14:22:18', message: 'Agent service timeout on device 82f7d9e5a3c2' },
+    { time: '14:21:45', message: 'Failed to analyze telemetry for device a3b2c1d4e5f6' },
+    { time: '14:21:12', message: 'Connection lost to monitoring service' },
+    { time: '14:20:58', message: 'Disk prediction model inference timeout' },
+    { time: '14:20:33', message: 'Unable to create ticket for device 7f8e9d0c1b2a' },
+  ]);
+
+  // Recent Customer Activities dummy data
+  const customerActivities: CustomerActivity[] = [
+    {
+      id: 1,
+      type: 'resolved',
+      title: 'Case Resolved',
+      customer: 'Acme Corporation',
+      description: 'Storage issue resolved successfully',
+      time: '5 min ago',
+      priority: 'High',
+      status: 'Completed',
+      satisfaction: 5,
+    },
+    {
+      id: 2,
+      type: 'new',
+      title: 'New Case',
+      customer: 'Global Finance Ltd',
+      description: 'Network connectivity issue reported',
+      time: '23 min ago',
+      priority: 'Medium',
+      status: 'In Progress',
+      assignedTo: 'Technical Support',
+    },
+    {
+      id: 3,
+      type: 'escalation',
+      title: 'Escalation',
+      customer: 'HealthCare Plus',
+      description: 'Critical system outage - immediate attention required',
+      time: '1 hour ago',
+      priority: 'High',
+      status: 'Escalated',
+      assignedTo: 'Senior Engineering',
+    },
+    {
+      id: 4,
+      type: 'followup',
+      title: 'Follow-up',
+      customer: 'Design Studios Ltd',
+      description: 'Post-maintenance check scheduled',
+      time: '2 hours ago',
+      priority: 'Low',
+      status: 'Scheduled',
+    },
+    {
+      id: 5,
+      type: 'maintenance',
+      title: 'Maintenance Completed',
+      customer: 'TechSolutions Inc.',
+      description: 'Routine server maintenance completed',
+      time: '3 hours ago',
+      priority: 'Medium',
+      status: 'Completed',
+      satisfaction: 4,
+    },
+    {
+      id: 6,
+      type: 'upgrade',
+      title: 'System Upgrade',
+      customer: 'Acme Corporation',
+      description: 'Database server upgrade initiated',
+      time: '4 hours ago',
+      priority: 'Medium',
+      status: 'In Progress',
+      assignedTo: 'Infrastructure Team',
+    },
+    {
+      id: 7,
+      type: 'resolved',
+      title: 'Issue Resolved',
+      customer: 'Global Finance Ltd',
+      description: 'Email server configuration fixed',
+      time: '5 hours ago',
+      priority: 'Low',
+      status: 'Completed',
+      satisfaction: 5,
+    },
+    {
+      id: 8,
+      type: 'new',
+      title: 'New Request',
+      customer: 'HealthCare Plus',
+      description: 'Additional storage capacity requested',
+      time: '6 hours ago',
+      priority: 'Medium',
+      status: 'Under Review',
+      assignedTo: 'Sales Team',
+    },
+    {
+      id: 9,
+      type: 'followup',
+      title: 'Customer Check-in',
+      customer: 'Design Studios Ltd',
+      description: 'Quarterly business review scheduled',
+      time: '1 day ago',
+      priority: 'Low',
+      status: 'Scheduled',
+    },
+    {
+      id: 10,
+      type: 'escalation',
+      title: 'Priority Escalation',
+      customer: 'TechSolutions Inc.',
+      description: 'Performance degradation requires immediate attention',
+      time: '1 day ago',
+      priority: 'High',
+      status: 'Escalated',
+      assignedTo: 'Performance Team',
+    },
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAgentErrors((prev) => [
+        ...prev.slice(-20),
+        {
+          time: new Date().toLocaleTimeString(),
+          message: `Error ${Math.floor(Math.random() * 1000)}: Failed to process device telemetry`,
+        },
+      ]);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleCustomerView = (customer: Customer) => {
     setSelectedCustomer(customer);
@@ -52,6 +200,38 @@ const FredDashboard: React.FC<FredDashboardProps> = ({ data }) => {
         return 'blue';
       case 'Basic':
         return 'gray';
+      default:
+        return 'gray';
+    }
+  };
+
+  const getActivityTypeColor = (type: string) => {
+    switch (type) {
+      case 'resolved':
+        return 'green';
+      case 'new':
+        return 'blue';
+      case 'escalation':
+        return 'red';
+      case 'followup':
+        return 'orange';
+      case 'maintenance':
+        return 'teal';
+      case 'upgrade':
+        return 'violet';
+      default:
+        return 'gray';
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'High':
+        return 'red';
+      case 'Medium':
+        return 'yellow';
+      case 'Low':
+        return 'green';
       default:
         return 'gray';
     }
@@ -84,6 +264,21 @@ const FredDashboard: React.FC<FredDashboardProps> = ({ data }) => {
       deviceCount: 189,
     },
   ];
+
+  // Filter customers based on selected filters
+  const filteredCustomers = expandedCustomers.filter((customer) => {
+    const supportLevelMatch =
+      supportLevelFilter === 'All Support Levels' || customer.supportLevel === supportLevelFilter;
+    const locationMatch =
+      locationFilter === 'All Locations' ||
+      customer.location.includes(
+        locationFilter
+          .replace('Data Center 3', 'Data Center')
+          .replace('Branch Office', 'Branch')
+          .replace('HQ', 'HQ')
+      );
+    return supportLevelMatch && locationMatch;
+  });
 
   return (
     <Stack gap="lg" className="fred-dashboard-stack">
@@ -178,271 +373,167 @@ const FredDashboard: React.FC<FredDashboardProps> = ({ data }) => {
         </Grid.Col>
       </Grid>
 
-      {/* Customer Overview and Support Level Distribution */}
-      <Grid className="fred-dashboard-overview-grid">
-        <Grid.Col span={{ base: 12, md: 8 }}>
-          <Card withBorder p="lg" className="fred-dashboard-overview-card">
-            <Group justify="space-between" mb="md" className="fred-dashboard-overview-header-group">
-              <Text fw={600} className="fred-dashboard-overview-title">
-                Customer Overview
-              </Text>
-              <Group className="fred-dashboard-overview-filters-group">
-                <Select
-                  data={['All Support Levels', 'Enterprise', 'Premium', 'Basic']}
-                  defaultValue="All Support Levels"
-                  size="sm"
-                  className="fred-dashboard-overview-support-select"
-                />
-                <Select
-                  data={['All Locations', 'Data Center 3', 'Branch Office', 'HQ']}
-                  defaultValue="All Locations"
-                  size="sm"
-                  className="fred-dashboard-overview-location-select"
-                />
-              </Group>
-            </Group>
-
-            <Table
-              highlightOnHover
-              className="fred-dashboard-overview-table"
-              styles={{
-                tr: {
-                  '&:hover': {
-                    // backgroundColor will be handled by CSS
-                  },
-                },
-              }}
-            >
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Customer</Table.Th>
-                  <Table.Th>Contact</Table.Th>
-                  <Table.Th>Support Level</Table.Th>
-                  <Table.Th>Devices</Table.Th>
-                  <Table.Th>Location</Table.Th>
-                  <Table.Th>Actions</Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {expandedCustomers.map((customer: Customer) => (
-                  <Table.Tr key={customer.id} className="fred-dashboard-customer-row">
-                    <Table.Td>
-                      <Group gap="sm" className="fred-dashboard-customer-avatar-group">
-                        <Avatar size="sm" color="indigo">
-                          {customer.name.charAt(0)}
-                        </Avatar>
-                        <Text size="sm" fw={500} className="fred-dashboard-customer-name">
-                          {customer.name}
-                        </Text>
-                      </Group>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text className="fred-dashboard-customer-contact">{customer.contact}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Badge
-                        color={getSupportLevelColor(customer.supportLevel)}
-                        size="sm"
-                        className="fred-dashboard-customer-support-badge"
-                      >
-                        {customer.supportLevel}
-                      </Badge>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" fw={500} className="fred-dashboard-customer-device-count">
-                        {customer.deviceCount}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm" className="fred-dashboard-customer-location">
-                        {customer.location}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <ActionIcon
-                        variant="light"
-                        size="sm"
-                        onClick={() => handleCustomerView(customer)}
-                        className="fred-dashboard-customer-view-icon"
-                      >
-                        <IconEye size={14} />
-                      </ActionIcon>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </Card>
-        </Grid.Col>
-
-        <Grid.Col span={{ base: 12, md: 4 }}>
-          <Card withBorder p="lg" h="400" className="fred-dashboard-support-distribution-card">
-            <Text fw={600} mb="md" className="fred-dashboard-support-distribution-title">
-              Support Level Distribution
-            </Text>
-            <PieChart
-              data={[
-                { name: 'Enterprise', value: 23, color: '#8b5cf6' },
-                { name: 'Premium', value: 45, color: '#3b82f6' },
-                { name: 'Basic', value: 59, color: '#6b7280' },
-              ]}
-              withLabelsLine
-              labelsPosition="outside"
-              labelsType="percent"
-              withTooltip
-              size={200}
-              className="fred-dashboard-support-distribution-pie"
+      {/* Customer Overview - Full Width */}
+      <Card withBorder p="lg" className="fred-dashboard-overview-card">
+        <Group justify="space-between" mb="md" className="fred-dashboard-overview-header-group">
+          <Text fw={600} className="fred-dashboard-overview-title">
+            Customer Overview
+          </Text>
+          <Group className="fred-dashboard-overview-filters-group">
+            <Select
+              data={['All Support Levels', 'Enterprise', 'Premium', 'Basic']}
+              value={supportLevelFilter}
+              onChange={(value) => setSupportLevelFilter(value || 'All Support Levels')}
+              size="sm"
+              className="fred-dashboard-overview-support-select"
             />
+            <Select
+              data={[
+                'All Locations',
+                'Data Center 3',
+                'Branch Office',
+                'HQ Building',
+                'Creative Hub',
+                'Medical Center',
+              ]}
+              value={locationFilter}
+              onChange={(value) => setLocationFilter(value || 'All Locations')}
+              size="sm"
+              className="fred-dashboard-overview-location-select"
+            />
+          </Group>
+        </Group>
 
-            <Stack gap="sm" mt="md" className="fred-dashboard-support-distribution-legend">
-              <Group justify="space-between">
-                <Group gap="xs">
-                  <div
-                    style={{
-                      width: 12,
-                      height: 12,
-                      backgroundColor: '#8b5cf6',
-                      borderRadius: '50%',
-                    }}
-                  />
-                  <Text size="sm" className="fred-dashboard-support-distribution-label">
-                    Enterprise
+        <DataTable
+          columns={[
+            {
+              accessor: 'name',
+              title: 'Customer',
+              render: (customer) => (
+                <Group gap="sm" className="fred-dashboard-customer-avatar-group">
+                  <Avatar size="sm" color="indigo">
+                    {customer.name.charAt(0)}
+                  </Avatar>
+                  <Text size="sm" fw={500} className="fred-dashboard-customer-name">
+                    {customer.name}
                   </Text>
                 </Group>
-                <Text size="sm" fw={500} className="fred-dashboard-support-distribution-value">
-                  23
+              ),
+            },
+            {
+              accessor: 'contact',
+              title: 'Contact',
+              render: (customer) => (
+                <Text className="fred-dashboard-customer-contact">{customer.contact}</Text>
+              ),
+            },
+            {
+              accessor: 'supportLevel',
+              title: 'Support Level',
+              render: (customer) => (
+                <Badge
+                  color={getSupportLevelColor(customer.supportLevel)}
+                  size="sm"
+                  className="fred-dashboard-customer-support-badge"
+                >
+                  {customer.supportLevel}
+                </Badge>
+              ),
+            },
+            {
+              accessor: 'deviceCount',
+              title: 'Devices',
+              render: (customer) => (
+                <Text size="sm" fw={500} className="fred-dashboard-customer-device-count">
+                  {customer.deviceCount}
                 </Text>
-              </Group>
-              <Group justify="space-between">
-                <Group gap="xs">
-                  <div
-                    style={{
-                      width: 12,
-                      height: 12,
-                      backgroundColor: '#3b82f6',
-                      borderRadius: '50%',
-                    }}
-                  />
-                  <Text size="sm" className="fred-dashboard-support-distribution-label">
-                    Premium
-                  </Text>
-                </Group>
-                <Text size="sm" fw={500} className="fred-dashboard-support-distribution-value">
-                  45
+              ),
+            },
+            {
+              accessor: 'location',
+              title: 'Location',
+              render: (customer) => (
+                <Text size="sm" className="fred-dashboard-customer-location">
+                  {customer.location}
                 </Text>
-              </Group>
-              <Group justify="space-between">
-                <Group gap="xs">
-                  <div
-                    style={{
-                      width: 12,
-                      height: 12,
-                      backgroundColor: '#6b7280',
-                      borderRadius: '50%',
-                    }}
-                  />
-                  <Text size="sm" className="fred-dashboard-support-distribution-label">
-                    Basic
-                  </Text>
-                </Group>
-                <Text size="sm" fw={500} className="fred-dashboard-support-distribution-value">
-                  59
-                </Text>
-              </Group>
-            </Stack>
-          </Card>
-        </Grid.Col>
-      </Grid>
+              ),
+            },
+            {
+              accessor: 'actions',
+              title: 'Actions',
+              render: (customer) => (
+                <ActionIcon
+                  variant="light"
+                  size="sm"
+                  onClick={() => handleCustomerView(customer)}
+                  className="fred-dashboard-customer-view-icon"
+                >
+                  <IconEye size={14} />
+                </ActionIcon>
+              ),
+            },
+          ]}
+          records={filteredCustomers}
+          highlightOnHover
+          borderRadius="md"
+          withTableBorder
+          striped
+          verticalSpacing="md"
+          page={activePage}
+          onPageChange={setActivePage}
+          recordsPerPage={10}
+          totalRecords={filteredCustomers.length}
+          className="fred-dashboard-overview-table"
+        />
+      </Card>
 
-      {/* Support Metrics and Recent Activities */}
+      {/* AI Console and Recent Activities */}
       <Grid className="fred-dashboard-metrics-grid">
         <Grid.Col span={{ base: 12, md: 6 }}>
-          <Card withBorder p="lg" className="fred-dashboard-metrics-card">
-            <Text fw={600} mb="md" className="fred-dashboard-metrics-title">
-              Support Metrics
-            </Text>
-            <Stack gap="lg" className="fred-dashboard-metrics-stack">
-              <div className="fred-dashboard-metrics-item">
-                <Group justify="space-between" mb="xs">
-                  <Text size="sm" className="fred-dashboard-metrics-label">
-                    Average Response Time
-                  </Text>
-                  <Text size="sm" fw={500} className="fred-dashboard-metrics-value">
-                    1.2 hours
-                  </Text>
-                </Group>
-                <Progress value={85} color="green" className="fred-dashboard-metrics-progress" />
-                <Text
-                  size="xs"
-                  className="fred-dashboard-metrics-target"
-                  mt="xs"
-                >{`Target: <2 hours`}</Text>
+          <Card withBorder p="lg" className="fred-dashboard-activities-card">
+            <Group justify="space-between" mb="md">
+              <Group>
+                <IconBrain size={20} color="#6366f1" />
+                <Text fw={600}>AI Agent Console</Text>
+              </Group>
+              <Badge color="blue" variant="light">
+                Live
+              </Badge>
+            </Group>
+            <ScrollArea h={400}>
+              <div
+                style={{
+                  minHeight: '400px',
+                  backgroundColor: '#0f172a',
+                  borderRadius: '6px',
+                  padding: '12px',
+                  fontFamily: 'Monaco, Consolas, "Courier New", monospace',
+                  fontSize: '12px',
+                  lineHeight: '1.4',
+                }}
+              >
+                {agentErrors.map((notification, idx) => (
+                  <div key={idx} style={{ marginBottom: '4px' }}>
+                    <span style={{ color: '#64748b' }}>[{notification.time}]</span>{' '}
+                    <span style={{ color: '#ef4444' }}>{notification.message}</span>
+                  </div>
+                ))}
               </div>
-
-              <div className="fred-dashboard-metrics-item">
-                <Group justify="space-between" mb="xs">
-                  <Text size="sm" className="fred-dashboard-metrics-label">
-                    Case Resolution Rate
-                  </Text>
-                  <Text size="sm" fw={500} className="fred-dashboard-metrics-value">
-                    94%
-                  </Text>
-                </Group>
-                <Progress value={94} color="blue" className="fred-dashboard-metrics-progress" />
-                <Text
-                  size="xs"
-                  className="fred-dashboard-metrics-target"
-                  mt="xs"
-                >{`Target: >90%`}</Text>
-              </div>
-
-              <div className="fred-dashboard-metrics-item">
-                <Group justify="space-between" mb="xs">
-                  <Text size="sm" className="fred-dashboard-metrics-label">
-                    Customer Satisfaction
-                  </Text>
-                  <Text size="sm" fw={500} className="fred-dashboard-metrics-value">
-                    4.7/5.0
-                  </Text>
-                </Group>
-                <Progress value={94} color="violet" className="fred-dashboard-metrics-progress" />
-                <Text size="xs" className="fred-dashboard-metrics-target" mt="xs">
-                  Based on 1,247 reviews
-                </Text>
-              </div>
-
-              <div className="fred-dashboard-metrics-item">
-                <Group justify="space-between" mb="xs">
-                  <Text size="sm" className="fred-dashboard-metrics-label">
-                    First Contact Resolution
-                  </Text>
-                  <Text size="sm" fw={500} className="fred-dashboard-metrics-value">
-                    78%
-                  </Text>
-                </Group>
-                <Progress value={78} color="teal" className="fred-dashboard-metrics-progress" />
-                <Text
-                  size="xs"
-                  className="fred-dashboard-metrics-target"
-                  mt="xs"
-                >{`Target: >75%`}</Text>
-              </div>
-            </Stack>
+            </ScrollArea>
           </Card>
         </Grid.Col>
 
         <Grid.Col span={{ base: 12, md: 6 }}>
-          <Card withBorder p="lg" className="fred-dashboard-activities-card">
+          <Card withBorder p="lg" className="fred-dashboard-activities-card" h={480}>
             <Text fw={600} mb="md" className="fred-dashboard-activities-title">
               Recent Customer Activities
             </Text>
             <ScrollArea
-              h={320}
+              h={400}
               className="fred-dashboard-activities-scroll"
               styles={{
                 scrollbar: {
                   '&[data-orientation="vertical"] .mantine-ScrollArea-thumb': {
-                    // backgroundColor will be handled by CSS
                     width: '6px',
                   },
                   '&[data-orientation="vertical"]': {
@@ -452,89 +543,56 @@ const FredDashboard: React.FC<FredDashboardProps> = ({ data }) => {
               }}
             >
               <Stack gap="md" className="fred-dashboard-activities-stack">
-                <Card
-                  withBorder
-                  p="sm"
-                  className="fred-dashboard-activity-card fred-dashboard-activity-resolved"
-                >
-                  <Group justify="space-between">
-                    <Text size="sm" c="green" fw={500}>
-                      Case Resolved
-                    </Text>
-                    <Text size="xs" className="fred-dashboard-activity-time">
-                      5 min ago
-                    </Text>
-                  </Group>
-                  <Text size="sm" className="fred-dashboard-activity-desc">
-                    Acme Corp. - Storage issue resolved
-                  </Text>
-                  <Text size="xs" className="fred-dashboard-activity-satisfaction">
-                    Customer satisfaction: 5/5
-                  </Text>
-                </Card>
+                {customerActivities.map((activity) => (
+                  <Card
+                    key={activity.id}
+                    withBorder
+                    p="sm"
+                    className="fred-dashboard-activity-card"
+                  >
+                    <Group justify="space-between" mb="xs">
+                      <Group gap="xs">
+                        <Badge color={getActivityTypeColor(activity.type)} size="sm">
+                          {activity.title}
+                        </Badge>
+                        <Badge
+                          color={getPriorityColor(activity.priority)}
+                          size="xs"
+                          variant="light"
+                        >
+                          {activity.priority}
+                        </Badge>
+                      </Group>
+                      <Text size="xs" className="fred-dashboard-activity-time">
+                        {activity.time}
+                      </Text>
+                    </Group>
 
-                <Card
-                  withBorder
-                  p="sm"
-                  className="fred-dashboard-activity-card fred-dashboard-activity-new"
-                >
-                  <Group justify="space-between">
-                    <Text size="sm" c="blue" fw={500}>
-                      New Case
+                    <Text size="sm" fw={500} mb="xs" className="fred-dashboard-activity-customer">
+                      {activity.customer}
                     </Text>
-                    <Text size="xs" className="fred-dashboard-activity-time">
-                      23 min ago
-                    </Text>
-                  </Group>
-                  <Text size="sm" className="fred-dashboard-activity-desc">
-                    Global Finance - Network connectivity issue
-                  </Text>
-                  <Text size="xs" className="fred-dashboard-activity-assigned">
-                    Assigned to: Technical Support
-                  </Text>
-                </Card>
 
-                <Card
-                  withBorder
-                  p="sm"
-                  className="fred-dashboard-activity-card fred-dashboard-activity-escalation"
-                >
-                  <Group justify="space-between">
-                    <Text size="sm" c="violet" fw={500}>
-                      Escalation
+                    <Text size="sm" mb="xs" className="fred-dashboard-activity-desc">
+                      {activity.description}
                     </Text>
-                    <Text size="xs" className="fred-dashboard-activity-time">
-                      1 hour ago
-                    </Text>
-                  </Group>
-                  <Text size="sm" className="fred-dashboard-activity-desc">
-                    HealthCare Plus - Critical system outage
-                  </Text>
-                  <Text size="xs" className="fred-dashboard-activity-escalated">
-                    Escalated to: Senior Engineering
-                  </Text>
-                </Card>
 
-                <Card
-                  withBorder
-                  p="sm"
-                  className="fred-dashboard-activity-card fred-dashboard-activity-followup"
-                >
-                  <Group justify="space-between">
-                    <Text size="sm" c="orange" fw={500}>
-                      Follow-up
-                    </Text>
-                    <Text size="xs" className="fred-dashboard-activity-time">
-                      2 hours ago
-                    </Text>
-                  </Group>
-                  <Text size="sm" className="fred-dashboard-activity-desc">
-                    Design Studios - Post-maintenance check
-                  </Text>
-                  <Text size="xs" className="fred-dashboard-activity-scheduled">
-                    Scheduled for: Tomorrow 2:00 PM
-                  </Text>
-                </Card>
+                    <Group justify="space-between">
+                      <Text size="xs" c="dimmed" className="fred-dashboard-activity-status">
+                        Status: {activity.status}
+                      </Text>
+                      {activity.assignedTo && (
+                        <Text size="xs" c="dimmed" className="fred-dashboard-activity-assigned">
+                          Assigned: {activity.assignedTo}
+                        </Text>
+                      )}
+                      {activity.satisfaction && (
+                        <Text size="xs" c="green" className="fred-dashboard-activity-satisfaction">
+                          Rating: {activity.satisfaction}/5
+                        </Text>
+                      )}
+                    </Group>
+                  </Card>
+                ))}
               </Stack>
             </ScrollArea>
           </Card>

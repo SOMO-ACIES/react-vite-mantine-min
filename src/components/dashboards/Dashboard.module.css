@@ -6,5 +6,6 @@
 .dashboard-ai-console-card,
 .dashboard-system-events-card,
 .dashboard-card {
-  background-color: light-dark(red, #23272e) !important;
+  /* background-color: light-dark(red, #23272e) !important; */
+  height: 135px;
 }

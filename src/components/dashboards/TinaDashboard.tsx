@@ -26,19 +26,21 @@ import {
   Text,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import type { Ticket } from '../../data/dummyData';
+import { mockIssues } from '../../data/mockDataO';
 import TelemetryTrendLine from '../TelemetryTrendLine';
 
 interface TinaDashboardProps {
-  data: any;
+  // data: any; // No longer needed
   darkMode?: boolean;
 }
 
-const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
+type Issue = (typeof mockIssues)[number];
+
+const TinaDashboard: React.FC<TinaDashboardProps> = () => {
   const [opened, { open, close }] = useDisclosure(false);
-  const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [priorityFilter, setPriorityFilter] = useState<string>('All Priorities');
-  const [warrantyFilter, setWarrantyFilter] = useState<string>('All Warranty');
+  const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>('All Statuses');
+  const [typeFilter, setTypeFilter] = useState<string>('All Types');
   const [activePage, setActivePage] = useState(1);
   const [activeTab, setActiveTab] = useState<string>('disk-crash');
   const [agentErrors, setAgentErrors] = useState([
@@ -49,42 +51,42 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
     { time: '14:20:33', message: 'Unable to create ticket for device 7f8e9d0c1b2a' },
   ]);
 
-  // Live ticket events data
-  const liveTicketEvents = [
+  // Live issue events data
+  const liveIssueEvents = [
     {
       id: 1,
       time: 'Just now',
       badge: { text: 'New', color: 'blue' },
-      title: 'Server #SRV-2245 reported disk errors',
-      subtitle: 'Acme Corp. - Data Center 3',
+      title: 'Battery draining rapidly on device DEV001',
+      subtitle: 'Dell Inspiron 15 - User reported sudden power loss',
     },
     {
       id: 2,
-      time: '5 minutes ago',
-      badge: { text: 'Updated', color: 'purple' },
-      title: 'Storage Array #ST-443 disk replacement confirmed',
-      subtitle: 'TechSolutions Inc. - HQ',
+      time: '3 minutes ago',
+      badge: { text: 'Under Analysis', color: 'yellow' },
+      title: 'Driver update failed on device DEV004',
+      subtitle: 'ASUS ZenBook 14 - Network adapter not detected',
     },
     {
       id: 3,
-      time: '15 minutes ago',
-      badge: { text: 'Critical', color: 'red' },
-      title: 'NAS Device #NAS-112 multiple disk failures',
-      subtitle: 'Global Finance - Branch Office',
+      time: '10 minutes ago',
+      badge: { text: 'Closed', color: 'green' },
+      title: 'Device crash resolved on device DEV006',
+      subtitle: 'MSI Gaming Desktop - System rebooted successfully',
     },
     {
       id: 4,
-      time: '1 hour ago',
-      badge: { text: 'Resolved', color: 'green' },
-      title: 'Workstation #WS-6678 maintenance completed',
-      subtitle: 'Creative Studios - Design Dept',
+      time: '20 minutes ago',
+      badge: { text: 'Forwarded', color: 'purple' },
+      title: 'Thermal issue escalated for device DEV003',
+      subtitle: 'Lenovo ThinkPad X1 - Overheating during gaming',
     },
     {
       id: 5,
-      time: '2 hours ago',
-      badge: { text: 'Assigned', color: 'yellow' },
-      title: 'Database Server #DB-001 performance issues',
-      subtitle: 'Corporate IT - Data Center 1',
+      time: '1 hour ago',
+      badge: { text: 'Closed', color: 'green' },
+      title: 'Screen flickering fixed on device DEV002',
+      subtitle: 'HP Pavilion Desktop - Display driver reinstalled',
     },
   ];
 
@@ -145,36 +147,41 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
     return data;
   };
 
-  const handleTicketView = (ticket: Ticket) => {
-    setSelectedTicket(ticket);
+  const handleIssueView = (issue: Issue) => {
+    setSelectedIssue(issue);
     open();
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Analysis':
+      case 'Open':
         return 'yellow';
-      case 'Critical':
-        return 'red';
-      case 'Assigned':
+      case 'In Progress':
         return 'blue';
       case 'Resolved':
         return 'green';
-      case 'Waiting':
+      case 'Closed':
         return 'gray';
       default:
         return 'gray';
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'High':
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'BATTERY_DRAIN':
+      case 'THERMAL_ISSUE':
+      case 'SYSTEM_CRASH':
         return 'red';
-      case 'Medium':
+      case 'DISPLAY_ISSUE':
+      case 'NETWORK_ISSUE':
+      case 'PERFORMANCE_ISSUE':
         return 'yellow';
-      case 'Low':
-        return 'green';
+      case 'INPUT_ISSUE':
+      case 'AUDIO_ISSUE':
+      case 'TOUCH_ISSUE':
+      case 'LIGHTING_ISSUE':
+        return 'blue';
       default:
         return 'gray';
     }
@@ -194,19 +201,41 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
     return () => clearInterval(interval);
   }, []);
 
-  const filteredTickets = data.tickets.filter(
-    (ticket: any) =>
-      (priorityFilter === 'All Priorities' || ticket.priority === priorityFilter) &&
-      (warrantyFilter === 'All Warranty' ||
-        (warrantyFilter === 'In Warranty' ? ticket.warranty : !ticket.warranty))
+  // Filtering logic
+  const filteredIssues = mockIssues.filter(
+    (issue) =>
+      (statusFilter === 'All Statuses' || issue.issue_status === statusFilter) &&
+      (typeFilter === 'All Types' || issue.issue_type_id === typeFilter)
   );
+
+  // For filter dropdowns
+  const statusOptions = [
+    'All Statuses',
+    ...Array.from(new Set(mockIssues.map((i) => i.issue_status))).sort(),
+  ];
+  const typeOptions = [
+    'All Types',
+    ...Array.from(new Set(mockIssues.map((i) => i.issue_type_id))).sort(),
+  ];
+
+  // Analytics calculations
+  const analytics = {
+    ticketsUnderAnalysis: mockIssues.filter(
+      (i) => i.issue_status === 'Open' || i.issue_status === 'In Progress'
+    ).length,
+    closedToday: mockIssues.filter(
+      (i) => i.issue_status === 'Resolved' || i.issue_status === 'Closed'
+    ).length,
+    assignedToday: mockIssues.filter((i) => i.issue_status === 'In Progress').length,
+    avgResponseTime: '1.4h',
+  };
 
   return (
     <Stack gap="lg">
       <Group justify="space-between">
         <Group>
           <Text size="xl" fw={700}>
-            Ticket Management Dashboard
+            Issue Management Dashboard
           </Text>
           <Select
             data={["Rahul's Dashboard", "Tina's Dashboard", "Fred's Dashboard"]}
@@ -228,10 +257,10 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
         <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
           <Card withBorder p="lg">
             <Text size="sm" c="dimmed" mb="xs">
-              Tickets Under Analysis
+              Issues Under Analysis
             </Text>
             <Text size="xl" fw={700}>
-              {data.analytics.ticketsUnderAnalysis}
+              {analytics.ticketsUnderAnalysis}
             </Text>
             <Group gap="xs" mt="xs">
               <IconTrendingUp size={16} color="green" />
@@ -244,10 +273,10 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
         <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
           <Card withBorder p="lg">
             <Text size="sm" c="dimmed" mb="xs">
-              Closed Today
+              Resolved Today
             </Text>
             <Text size="xl" fw={700}>
-              {data.analytics.closedToday}
+              {analytics.closedToday}
             </Text>
             <Text size="sm" c="green">
               94% resolution rate
@@ -257,10 +286,10 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
         <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
           <Card withBorder p="lg">
             <Text size="sm" c="dimmed" mb="xs">
-              Assigned Today
+              In Progress
             </Text>
             <Text size="xl" fw={700}>
-              {data.analytics.assignedToday}
+              {analytics.assignedToday}
             </Text>
             <Text size="sm" c="red">
               3 high priority
@@ -273,7 +302,7 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
               Avg. Response Time
             </Text>
             <Text size="xl" fw={700}>
-              {data.analytics.avgResponseTime}
+              {analytics.avgResponseTime}
             </Text>
             <Group gap="xs" mt="xs">
               <IconTrendingDown size={16} color="green" />
@@ -289,14 +318,14 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
         <Grid.Col span={{ base: 12, md: 4 }}>
           <Card withBorder p="lg" h="500" style={{ display: 'flex', flexDirection: 'column' }}>
             <Group justify="space-between" mb="md">
-              <Text fw={600}>Live Ticket Events</Text>
+              <Text fw={600}>Live Issue Events</Text>
               <Badge color="green" variant="light">
                 Live
               </Badge>
             </Group>
             <ScrollArea style={{ flex: 1 }}>
               <Stack gap="md">
-                {liveTicketEvents.map((event) => (
+                {liveIssueEvents.map((event) => (
                   <Card key={event.id} withBorder p="sm">
                     <Group justify="space-between">
                       <Text size="sm">{event.time}</Text>
@@ -326,10 +355,10 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
                 Live
               </Badge>
             </Group>
-            <ScrollArea h={400}>
+            <ScrollArea mih={400}>
               <div
                 style={{
-                  height: '420px',
+                  minHeight: '400px',
                   backgroundColor: '#0f172a',
                   borderRadius: '6px',
                   padding: '12px',
@@ -352,18 +381,18 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
         <Grid.Col span={{ base: 12, md: 8 }}>
           <Card withBorder p="lg" h="1015">
             <Group justify="space-between" mb="md">
-              <Text fw={600}>Ticket Queue</Text>
+              <Text fw={600}>Issue Queue</Text>
               <Group>
                 <Select
-                  data={['All Priorities', 'High', 'Medium', 'Low']}
-                  value={priorityFilter}
-                  onChange={(val) => setPriorityFilter(val || 'All Priorities')}
+                  data={statusOptions}
+                  value={statusFilter}
+                  onChange={(val) => setStatusFilter(val || 'All Statuses')}
                   size="sm"
                 />
                 <Select
-                  data={['All Warranty', 'In Warranty', 'Out of Warranty']}
-                  value={warrantyFilter}
-                  onChange={(val) => setWarrantyFilter(val || 'All Warranty')}
+                  data={typeOptions}
+                  value={typeFilter}
+                  onChange={(val) => setTypeFilter(val || 'All Types')}
                   size="sm"
                 />
               </Group>
@@ -374,48 +403,46 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
                 {
                   accessor: 'id',
                   title: 'ID',
-                  render: (r) => <Text>{r.id}</Text>,
+                  render: (r) => <Text>{r.item_id}</Text>,
                 },
                 {
                   accessor: 'device',
                   title: 'Device',
-                  render: (r) => <Text>{r.device}</Text>,
+                  render: (r) => <Text>{r.device_id}</Text>,
                 },
                 {
-                  accessor: 'customer',
-                  title: 'Customer',
-                  render: (r) => <Text>{r.customer}</Text>,
+                  accessor: 'title',
+                  title: 'Issue Title',
+                  render: (r) => <Text>{r.issue_title}</Text>,
                 },
                 {
-                  accessor: 'issue',
-                  title: 'Issue',
-                  render: (r) => <Text>{r.issue}</Text>,
+                  accessor: 'type',
+                  title: 'Type',
+                  render: (r) => <Text>{r.item_name}</Text>,
                 },
                 {
                   accessor: 'status',
                   title: 'Status',
-                  render: (r) => <Badge color={getStatusColor(r.status)}>{r.status}</Badge>,
+                  render: (r) => (
+                    <Badge color={getStatusColor(r.issue_status)}>{r.issue_status}</Badge>
+                  ),
                 },
-                {
-                  accessor: 'priority',
-                  title: 'Priority',
-                  render: (r) => <Badge color={getPriorityColor(r.priority)}>{r.priority}</Badge>,
-                },
+                // {
+                //   accessor: 'priority',
+                //   title: 'Priority',
+                //   render: (r) => <Badge color={getTypeColor(r.issue_type_id)}>{r.issue_type_id}</Badge>,
+                // },
                 {
                   accessor: 'actions',
                   title: 'Actions',
                   render: (r) => (
-                    <ActionIcon
-                      onClick={() => handleTicketView(r as unknown as Ticket)}
-                      variant="light"
-                      size="sm"
-                    >
+                    <ActionIcon onClick={() => handleIssueView(r)} variant="light" size="sm">
                       <IconEye size={14} />
                     </ActionIcon>
                   ),
                 },
               ]}
-              records={filteredTickets}
+              records={filteredIssues}
               mt="md"
               highlightOnHover
               borderRadius="md"
@@ -426,31 +453,29 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
               page={activePage}
               onPageChange={setActivePage}
               recordsPerPage={15}
-              totalRecords={filteredTickets.length}
+              totalRecords={filteredIssues.length}
             />
           </Card>
         </Grid.Col>
       </Grid>
 
-      {/* Ticket Detail Modal */}
+      {/* Issue Detail Modal */}
       <Modal
         opened={opened}
         onClose={close}
-        title={selectedTicket ? `Ticket ${selectedTicket.id} - Analysis` : ''}
+        title={selectedIssue ? `Issue ${selectedIssue.item_id} - Analysis` : ''}
         size="xl"
       >
-        {selectedTicket && (
+        {selectedIssue && (
           <Stack gap="lg">
             <Group justify="space-between">
               <Group>
-                <Badge color={getStatusColor(selectedTicket.status)}>
-                  In {selectedTicket.status}
+                <Badge color={getStatusColor(selectedIssue.issue_status)}>
+                  {selectedIssue.issue_status}
                 </Badge>
-                {selectedTicket.warranty && (
-                  <Badge color="green" variant="light">
-                    In Warranty
-                  </Badge>
-                )}
+                <Badge color={getTypeColor(selectedIssue.issue_type_id)} variant="light">
+                  {selectedIssue.issue_type_id}
+                </Badge>
               </Group>
               <ActionIcon onClick={close} variant="light">
                 <IconX size={16} />
@@ -460,36 +485,36 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
             <Grid>
               <Grid.Col span={6}>
                 <Stack gap="sm">
-                  <Text fw={600}>Customer Information</Text>
+                  <Text fw={600}>Issue Information</Text>
                   <Text size="sm">
-                    <strong>Company:</strong> Acme Corporation
+                    <strong>Title:</strong> {selectedIssue.issue_title}
                   </Text>
                   <Text size="sm">
-                    <strong>Contact:</strong> John Smith
+                    <strong>Type:</strong> {selectedIssue.item_name}
                   </Text>
                   <Text size="sm">
-                    <strong>Location:</strong> Data Center 3
+                    <strong>Device ID:</strong> {selectedIssue.device_id}
                   </Text>
                   <Text size="sm">
-                    <strong>Support Level:</strong> Premium
+                    <strong>Reported:</strong> {new Date(selectedIssue.timestamp).toLocaleString()}
                   </Text>
                 </Stack>
               </Grid.Col>
 
               <Grid.Col span={6}>
                 <Stack gap="sm">
-                  <Text fw={600}>Device Information</Text>
+                  <Text fw={600}>Technical Details</Text>
                   <Text size="sm">
-                    <strong>Device:</strong> Server #SRV-2245
+                    <strong>Dataset ID:</strong> {selectedIssue.dataset_id}
                   </Text>
                   <Text size="sm">
-                    <strong>Model:</strong> PowerEdge R740
+                    <strong>Subscription ID:</strong> {selectedIssue.subscription_id}
                   </Text>
                   <Text size="sm">
-                    <strong>Serial:</strong> SN78932145
+                    <strong>Schema Version:</strong> {selectedIssue.schema_ver}
                   </Text>
                   <Text size="sm">
-                    <strong>Warranty:</strong> Valid until Dec 2023
+                    <strong>Context ID:</strong> {selectedIssue.item_context_id}
                   </Text>
                 </Stack>
               </Grid.Col>
@@ -497,8 +522,8 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
 
             <Tabs value={activeTab} onChange={(value) => setActiveTab(value || 'disk-crash')}>
               <Tabs.List>
-                <Tabs.Tab value="disk-crash">Disk Crash Probability</Tabs.Tab>
-                <Tabs.Tab value="device-crash">Device Crash Statistics</Tabs.Tab>
+                <Tabs.Tab value="disk-crash">Issue Analysis</Tabs.Tab>
+                <Tabs.Tab value="device-crash">Device Statistics</Tabs.Tab>
               </Tabs.List>
 
               <Tabs.Panel value="disk-crash">
@@ -508,196 +533,83 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
                       AI Analysis
                     </Text>
                     <Text size="sm" mb="sm">
-                      <strong>Issue:</strong> Disk failure prediction for Disk 2 (Bay 3)
+                      <strong>Issue:</strong> {selectedIssue.issue_title}
                     </Text>
                     <Text size="sm" mb="sm">
                       <strong>Confidence:</strong> 87%
                     </Text>
                     <Text size="sm" mb="sm">
-                      <strong>Suggested Action:</strong> Preemptive disk replacement recommended
+                      <strong>Suggested Action:</strong>{' '}
+                      {selectedIssue.issue_type_id === 'BATTERY_DRAIN'
+                        ? 'Battery replacement recommended'
+                        : 'System diagnostics required'}
                     </Text>
                     <Text size="sm">
-                      <strong>Part Required:</strong> 1.2TB 10K SAS 12Gbps 512n 2.5in Hot-plug Hard
-                      Drive
+                      <strong>Part Required:</strong>{' '}
+                      {selectedIssue.issue_type_id === 'BATTERY_DRAIN'
+                        ? 'Lithium-ion Battery Pack'
+                        : 'Diagnostic tools'}
                     </Text>
                   </Card>
 
-                  {selectedTicket.telemetry && (
-                    <Card withBorder p="md">
-                      <Text fw={600} mb="md">
-                        Telemetry Data
-                      </Text>
-                      <Grid gutter="md">
-                        <Grid.Col span={6}>
-                          <Card withBorder p="md" style={{ position: 'relative' }}>
-                            <Badge
-                              color="red"
-                              size="sm"
-                              style={{
-                                position: 'absolute',
-                                top: '8px',
-                                right: '8px',
-                              }}
-                            >
-                              Critical
-                            </Badge>
-                            <Text size="sm" fw={500} mb="sm">
-                              Read Error Rate
-                            </Text>
-                            <TelemetryTrendLine
-                              data={generateTrendData(selectedTicket.telemetry.readErrorRate, 'up')}
-                              color="#ef4444"
-                              trend="up"
-                              width={120}
-                              height={40}
-                            />
-                          </Card>
-                        </Grid.Col>
+                  <Card withBorder p="md">
+                    <Text fw={600} mb="md">
+                      Issue Metrics
+                    </Text>
+                    <Grid gutter="md">
+                      <Grid.Col span={6}>
+                        <Card withBorder p="md" style={{ position: 'relative' }}>
+                          <Badge
+                            color="red"
+                            size="sm"
+                            style={{
+                              position: 'absolute',
+                              top: '8px',
+                              right: '8px',
+                            }}
+                          >
+                            Critical
+                          </Badge>
+                          <Text size="sm" fw={500} mb="sm">
+                            Issue Severity
+                          </Text>
+                          <TelemetryTrendLine
+                            data={generateTrendData(75, 'up')}
+                            color="#ef4444"
+                            trend="up"
+                            width={120}
+                            height={40}
+                          />
+                        </Card>
+                      </Grid.Col>
 
-                        <Grid.Col span={6}>
-                          <Card withBorder p="md" style={{ position: 'relative' }}>
-                            <Badge
-                              color="red"
-                              size="sm"
-                              style={{
-                                position: 'absolute',
-                                top: '8px',
-                                right: '8px',
-                              }}
-                            >
-                              High
-                            </Badge>
-                            <Text size="sm" fw={500} mb="sm">
-                              Reallocated Sectors
-                            </Text>
-                            <TelemetryTrendLine
-                              data={generateTrendData(
-                                selectedTicket.telemetry.reallocatedSectors,
-                                'up'
-                              )}
-                              color="#ef4444"
-                              trend="up"
-                              width={120}
-                              height={40}
-                            />
-                          </Card>
-                        </Grid.Col>
-
-                        <Grid.Col span={6}>
-                          <Card withBorder p="md" style={{ position: 'relative' }}>
-                            <Badge
-                              color="yellow"
-                              size="sm"
-                              style={{
-                                position: 'absolute',
-                                top: '8px',
-                                right: '8px',
-                              }}
-                            >
-                              Warning
-                            </Badge>
-                            <Text size="sm" fw={500} mb="sm">
-                              Spin Retry Count
-                            </Text>
-                            <TelemetryTrendLine
-                              data={generateTrendData(
-                                selectedTicket.telemetry.spinRetryCount,
-                                'up'
-                              )}
-                              color="#f59e0b"
-                              trend="up"
-                              width={120}
-                              height={40}
-                            />
-                          </Card>
-                        </Grid.Col>
-
-                        <Grid.Col span={6}>
-                          <Card withBorder p="md" style={{ position: 'relative' }}>
-                            <Badge
-                              color="yellow"
-                              size="sm"
-                              style={{
-                                position: 'absolute',
-                                top: '8px',
-                                right: '8px',
-                              }}
-                            >
-                              Warning
-                            </Badge>
-                            <Text size="sm" fw={500} mb="sm">
-                              Temperature
-                            </Text>
-                            <TelemetryTrendLine
-                              data={generateTrendData(
-                                selectedTicket.telemetry.temperature,
-                                'stable'
-                              )}
-                              color="#f59e0b"
-                              trend="stable"
-                              width={120}
-                              height={40}
-                            />
-                          </Card>
-                        </Grid.Col>
-
-                        <Grid.Col span={6}>
-                          <Card withBorder p="md" style={{ position: 'relative' }}>
-                            <Badge
-                              color="gray"
-                              size="sm"
-                              style={{
-                                position: 'absolute',
-                                top: '8px',
-                                right: '8px',
-                              }}
-                            >
-                              Normal
-                            </Badge>
-                            <Text size="sm" fw={500} mb="sm">
-                              Power-On Hours
-                            </Text>
-                            <TelemetryTrendLine
-                              data={generateTrendData(
-                                selectedTicket.telemetry.powerOnHours / 1000,
-                                'up'
-                              )}
-                              color="#6b7280"
-                              trend="up"
-                              width={120}
-                              height={40}
-                            />
-                          </Card>
-                        </Grid.Col>
-
-                        <Grid.Col span={6}>
-                          <Card withBorder p="md" style={{ position: 'relative' }}>
-                            <Badge
-                              color="red"
-                              size="sm"
-                              style={{
-                                position: 'absolute',
-                                top: '8px',
-                                right: '8px',
-                              }}
-                            >
-                              Failing
-                            </Badge>
-                            <Text size="sm" fw={500} mb="sm">
-                              SMART Status
-                            </Text>
-                            <TelemetryTrendLine
-                              data={generateTrendData(80, 'down')}
-                              color="#ef4444"
-                              trend="down"
-                              width={120}
-                              height={40}
-                            />
-                          </Card>
-                        </Grid.Col>
-                      </Grid>
-                    </Card>
-                  )}
+                      <Grid.Col span={6}>
+                        <Card withBorder p="md" style={{ position: 'relative' }}>
+                          <Badge
+                            color="yellow"
+                            size="sm"
+                            style={{
+                              position: 'absolute',
+                              top: '8px',
+                              right: '8px',
+                            }}
+                          >
+                            Warning
+                          </Badge>
+                          <Text size="sm" fw={500} mb="sm">
+                            Response Time
+                          </Text>
+                          <TelemetryTrendLine
+                            data={generateTrendData(45, 'stable')}
+                            color="#f59e0b"
+                            trend="stable"
+                            width={120}
+                            height={40}
+                          />
+                        </Card>
+                      </Grid.Col>
+                    </Grid>
+                  </Card>
                 </Stack>
               </Tabs.Panel>
 
@@ -706,7 +618,7 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
                   {/* Risk Probability Gauge */}
                   <Card withBorder p="md">
                     <Text fw={600} mb="md">
-                      Device Crash Risk Probability
+                      Issue Resolution Probability
                     </Text>
                     <Group justify="center" mb="md">
                       <RingProgress
@@ -731,7 +643,7 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
                       />
                     </Group>
                     <Text size="sm" ta="center" c="dimmed">
-                      High risk of device failure within next 30 days
+                      High probability of issue resolution within next 24 hours
                     </Text>
                   </Card>
 
@@ -740,19 +652,17 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
                     <Grid.Col span={4}>
                       <Card withBorder p="md">
                         <Text fw={600} mb="md">
-                          Customer Information
+                          Issue Information
                         </Text>
                         <Stack gap="sm">
                           <Text size="sm">
-                            <strong>Customer ID:</strong> {deviceCrashData.customerInfo.customerId}
+                            <strong>Issue ID:</strong> {selectedIssue.item_id}
                           </Text>
                           <Text size="sm">
-                            <strong>Contacted Before:</strong>{' '}
-                            {deviceCrashData.customerInfo.contactedBefore}
+                            <strong>Type:</strong> {selectedIssue.issue_type_id}
                           </Text>
                           <Text size="sm">
-                            <strong>Last Contact Date:</strong>{' '}
-                            {deviceCrashData.customerInfo.lastContactDate}
+                            <strong>Status:</strong> {selectedIssue.issue_status}
                           </Text>
                         </Stack>
                       </Card>
@@ -765,17 +675,13 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
                         </Text>
                         <Stack gap="sm">
                           <Text size="sm">
-                            <strong>Model Type:</strong> {deviceCrashData.deviceInfo.modelType}
+                            <strong>Device ID:</strong> {selectedIssue.device_id}
                           </Text>
                           <Text size="sm">
-                            <strong>OS Version:</strong> {deviceCrashData.deviceInfo.osVersion}
+                            <strong>Dataset ID:</strong> {selectedIssue.dataset_id}
                           </Text>
                           <Text size="sm">
-                            <strong>Manufacturer:</strong> {deviceCrashData.deviceInfo.manufacturer}
-                          </Text>
-                          <Text size="sm">
-                            <strong>Manufacturing Date:</strong>{' '}
-                            {deviceCrashData.deviceInfo.manufacturingDate}
+                            <strong>Context ID:</strong> {selectedIssue.device_context_id}
                           </Text>
                         </Stack>
                       </Card>
@@ -784,7 +690,7 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
                     <Grid.Col span={4}>
                       <Card withBorder p="md">
                         <Text fw={600} mb="md">
-                          Telemetry Metrics
+                          System Metrics
                         </Text>
                         <Stack gap="sm">
                           <Text size="sm">
@@ -809,7 +715,7 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
                     <Grid.Col span={4}>
                       <Card withBorder p="md">
                         <Text fw={600} mb="md">
-                          Crash Type Distribution
+                          Issue Type Distribution
                         </Text>
                         <PieChart
                           data={deviceCrashData.crashTypeDistribution}
@@ -827,7 +733,7 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
                     <Grid.Col span={4}>
                       <Card withBorder p="md">
                         <Text fw={600} mb="md">
-                          Failure Components
+                          Resolution Components
                         </Text>
                         <PieChart
                           data={deviceCrashData.failureComponents}
@@ -866,10 +772,10 @@ const TinaDashboard: React.FC<TinaDashboardProps> = ({ data }) => {
 
             <Group justify="flex-end" gap="md">
               <Button variant="outline" color="red">
-                Close Ticket
+                Close Issue
               </Button>
               <Button variant="outline">Assign to Field Ops</Button>
-              <Button>Attempt Reboot</Button>
+              <Button>Attempt Resolution</Button>
             </Group>
           </Stack>
         )}
