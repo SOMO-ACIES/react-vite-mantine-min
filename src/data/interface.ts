@@ -52,6 +52,8 @@ export interface Device {
   udc_key: string;
   udc_name: string;
   udc_version: string;
+  employee_id: string;
+  department: string;
 }
 
 export interface Inventory {

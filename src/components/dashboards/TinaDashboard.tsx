@@ -28,6 +28,7 @@ import {
 import { useDisclosure } from '@mantine/hooks';
 import { mockIssues } from '../../data/mockDataO';
 import TelemetryTrendLine from '../TelemetryTrendLine';
+import './Dashboard.module.css';
 
 interface TinaDashboardProps {
   // data: any; // No longer needed
@@ -253,9 +254,9 @@ const TinaDashboard: React.FC<TinaDashboardProps> = () => {
         </Group>
       </Group>
 
-      <Grid>
-        <Grid.Col span={{ base: 12, sm: 6, md: 3 }}>
-          <Card withBorder p="lg">
+      <Grid align="stretch">
+        <Grid.Col span={{ base: 12, sm: 6, md: 3 }} h="100%">
+          <Card withBorder p="lg" className="dashboard-card">
             <Text size="sm" c="dimmed" mb="xs">
               Issues Under Analysis
             </Text>
@@ -290,9 +291,6 @@ const TinaDashboard: React.FC<TinaDashboardProps> = () => {
             </Text>
             <Text size="xl" fw={700}>
               {analytics.assignedToday}
-            </Text>
-            <Text size="sm" c="red">
-              3 high priority
             </Text>
           </Card>
         </Grid.Col>

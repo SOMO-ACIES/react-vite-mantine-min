@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import {
   IconActivity,
   IconBrain,
+  IconCopy,
   IconDevices,
   IconExclamationMark,
   IconEye,
-  IconInfoCircle,
   IconMail,
-  IconPointerCog,
   IconRefresh,
   IconSearch,
   IconTicket,
@@ -29,7 +28,9 @@ import {
   Tabs,
   Text,
 } from '@mantine/core';
+import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
+import { showNotification } from '@mantine/notifications';
 import { mockDevices } from '../../data/mockDataO';
 
 import './Dashboard.module.css';
@@ -50,6 +51,26 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
   const [allDevicesPage, setAllDevicesPage] = useState(1);
   const [locationFilter, setLocationFilter] = useState<string>('All Locations');
   const [brandFilter, setBrandFilter] = useState<string>('All Brands');
+  const [ticketModalOpen, setTicketModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  const ticketForm = useForm({
+    initialValues: {
+      deviceId: '',
+      deviceName: '',
+      deviceModel: '',
+      issueType: '',
+      description: '',
+      priority: '',
+    },
+    validate: {
+      deviceId: (v: string) => (v ? null : 'Device ID is required'),
+      deviceName: (v: string) => (v ? null : 'Device Name is required'),
+      issueType: (v: string) => (v ? null : 'Issue Type is required'),
+      description: (v: string) => (v ? null : 'Description is required'),
+      priority: (v: string) => (v ? null : 'Priority is required'),
+    },
+  });
 
   const handleDeviceView = (device: Device) => {
     setSelectedDevice(device);
@@ -62,12 +83,6 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
   };
 
-  const handleGenerateTicket = () => {
-    // This would typically create a new ticket in the system
-    console.log('Generating ticket for device:', selectedDevice?.device_name);
-    close();
-  };
-
   // For demonstration, let's define a simple risk and health score logic
   const getRiskLevel = (device: Device) => {
     if (device.device_enclosuretype === 'Laptop' && device.device_bios_version < '2.0.0') {
@@ -78,68 +93,65 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
     }
     return 'Low';
   };
-  const getHealthScore = (device: Device) => {
+
+  // Calculate Failure Probability (0-100) based on device age, bios version, and a random factor
+  const getFailureProbability = (device: Device) => {
     const purchase = new Date(device.device_purchase_date).getTime();
     const now = Date.now();
     const months = (now - purchase) / (1000 * 60 * 60 * 24 * 30);
-    if (months < 6) {
-      return 95;
-    }
-    if (months < 12) {
-      return 80;
-    }
-    if (months < 18) {
-      return 65;
-    }
-    return 50;
+    // Lower BIOS version increases risk
+    const biosRisk = device.device_bios_version < '2.0.0' ? 20 : 0;
+    // Age increases risk
+    let base = Math.min(100, Math.round(months * 3 + biosRisk));
+    // Add a random factor for demo
+    base += Math.floor(Math.random() * 10);
+    return Math.max(5, Math.min(100, base));
   };
-  const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case 'High':
-        return 'red';
-      case 'Medium':
-        return 'yellow';
-      case 'Low':
-        return 'green';
-      default:
-        return 'gray';
+
+  // Reverse color order for Failure Probability: high=red, low=green
+  const getFailureProbabilityColor = (prob: number) => {
+    if (prob >= 80) {
+      return 'red';
     }
-  };
-  const getHealthScoreColor = (score: number) => {
-    if (score >= 80) {
-      return 'green';
-    }
-    if (score >= 60) {
-      return 'yellow';
-    }
-    if (score >= 40) {
+    if (prob >= 60) {
       return 'orange';
     }
-    return 'red';
-  };
-  const getSystemEventIcon = (type: string) => {
-    switch (type) {
-      case 'defect':
-        return <IconExclamationMark size={16} color="red" />;
-      case 'analysis':
-        return <IconPointerCog size={16} color="orange" />;
-      case 'ticket':
-        return <IconTicket size={16} color="blue" />;
-      default:
-        return <IconInfoCircle size={16} />;
+    if (prob >= 40) {
+      return 'yellow';
     }
+    if (prob >= 20) {
+      return 'green';
+    }
+    return 'teal';
   };
+
+  // Sorting state
+  const [sortBy, setSortBy] = useState<'failureProbability' | 'lastSeen'>('failureProbability');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   // Filtering logic
   const filteredDevices = mockDevices.filter((device) => {
     const locationMatch =
       locationFilter === 'All Locations' || device.region_name === locationFilter;
     const brandMatch = brandFilter === 'All Brands' || device.device_brand === brandFilter;
-    return locationMatch && brandMatch;
+    const nameMatch = device.device_name.toLowerCase().includes(searchTerm.toLowerCase());
+    return locationMatch && brandMatch && nameMatch;
+  });
+
+  // Sorting logic
+  const sortedDevices = [...filteredDevices].sort((a, b) => {
+    if (sortBy === 'failureProbability') {
+      const fa = getFailureProbability(a);
+      const fb = getFailureProbability(b);
+      return sortDir === 'desc' ? fb - fa : fa - fb;
+    }
+    const da = new Date(a.device_context_datetime || 0).getTime();
+    const db = new Date(b.device_context_datetime || 0).getTime();
+    return sortDir === 'desc' ? db - da : da - db;
   });
 
   // For at-risk, use our getRiskLevel logic
-  const atRiskDevices = filteredDevices.filter(
+  const atRiskDevices = sortedDevices.filter(
     (device) => getRiskLevel(device) === 'High' || getRiskLevel(device) === 'Medium'
   );
 
@@ -157,152 +169,170 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
   const consoleNotifications = [
     {
       id: 1,
-      timestamp: '14:22:18',
-      type: 'error',
-      message: 'Agent service timeout on device 82f7d9e5a3c2 - could not start health scan',
+      timestamp: '14:23:18',
+      type: 'info',
+      message: 'AI Agent started device analysis for 1,200 devices.',
     },
     {
       id: 2,
-      timestamp: '14:22:17',
-      type: 'error',
-      message: 'Ticket creation failed for device 63f1b3d9d54a - database write error',
+      timestamp: '14:23:17',
+      type: 'success',
+      message: 'Ticket #55901 created for device 63f1b3d9d54a (Battery health warning).',
     },
     {
       id: 3,
-      timestamp: '14:22:17',
+      timestamp: '14:23:16',
       type: 'warning',
-      message: 'Device 63f1b3d9d54a returned partial telemetry - memory stats missing',
+      message: 'Battery health below threshold on device 82f7d9e5a3c2 (Cycle count: 1,200).',
     },
     {
       id: 4,
-      timestamp: '14:22:16',
-      type: 'error',
-      message: 'Agent not found on device 10e3ac847b - reinstallation required',
+      timestamp: '14:23:15',
+      type: 'info',
+      message: 'AI Agent completed anomaly detection for 1,200 devices.',
     },
     {
       id: 5,
-      timestamp: '14:22:15',
-      type: 'info',
-      message: 'Heartbeat received from 1,050 devices in last minute',
+      timestamp: '14:23:14',
+      type: 'warning',
+      message: 'Device 10e3ac847b reported battery temperature spike (45°C).',
     },
     {
       id: 6,
-      timestamp: '14:22:14',
-      type: 'error',
-      message: 'Failed to analyze disk health for device a87fd2309b - corrupt SMART data',
+      timestamp: '14:23:13',
+      type: 'info',
+      message: 'Device health check completed for device 2483dks837.',
     },
     {
       id: 7,
-      timestamp: '14:22:13',
-      type: 'warning',
-      message: 'Device a87fd2309b has been offline for 48 hours',
+      timestamp: '14:23:12',
+      type: 'success',
+      message: 'Ticket #55902 created for device 8129djsk48 (Performance issue).',
     },
     {
       id: 8,
-      timestamp: '14:22:12',
-      type: 'info',
-      message: 'Telemetry batch #3912 processed - 982 devices',
+      timestamp: '14:23:11',
+      type: 'warning',
+      message: 'Battery replacement recommended for device a87fd2309b.',
     },
     {
       id: 9,
-      timestamp: '14:22:11',
-      type: 'error',
-      message: 'Agent crash detected on device 2483dks837 - exit code 137',
+      timestamp: '14:23:10',
+      type: 'info',
+      message: 'AI Agent is monitoring battery metrics for all laptops.',
     },
     {
       id: 10,
-      timestamp: '14:22:10',
-      type: 'success',
-      message: 'Ticket #55892 successfully created for device 2483dks837',
+      timestamp: '14:23:09',
+      type: 'info',
+      message: 'Device 47dfk2847c passed all health checks.',
     },
     {
       id: 11,
-      timestamp: '14:22:09',
+      timestamp: '14:23:08',
       type: 'warning',
-      message: 'High latency in device response from device 1098dfkd92 - 1,203 ms',
+      message: 'Device 22dbfa2384: Battery charge cycles exceeded safe limit.',
     },
     {
       id: 12,
-      timestamp: '14:22:08',
+      timestamp: '14:23:07',
       type: 'info',
-      message: 'Initiated agent upgrade to version 2.4.1 on 152 devices',
+      message: 'AI Agent initiated firmware update on 50 devices.',
     },
     {
       id: 13,
-      timestamp: '14:22:07',
-      type: 'error',
-      message: 'AI model failed to classify device 8129djsk48 - missing CPU metrics',
+      timestamp: '14:23:06',
+      type: 'success',
+      message: 'Ticket #55903 created for device 22dbfa2384 (Battery replacement scheduled).',
     },
     {
       id: 14,
-      timestamp: '14:22:06',
-      type: 'warning',
-      message: 'Device 8129djsk48 sending delayed packets - 2-minute lag observed',
+      timestamp: '14:23:05',
+      type: 'info',
+      message: 'AI Agent is learning from new device telemetry patterns.',
     },
     {
       id: 15,
-      timestamp: '14:22:05',
-      type: 'error',
-      message: 'Authorization failure while accessing logs for device 47dfk2847c',
+      timestamp: '14:23:04',
+      type: 'warning',
+      message: 'Device 1098dfkd92: Sudden battery drain detected.',
     },
     {
       id: 16,
-      timestamp: '14:22:04',
-      type: 'warning',
-      message: 'Unusual spike in CPU usage on device 47dfk2847c - 94% sustained',
+      timestamp: '14:23:03',
+      type: 'info',
+      message: 'AI Agent is optimizing device scan intervals.',
     },
     {
       id: 17,
-      timestamp: '14:22:03',
-      type: 'success',
-      message: 'Agent successfully reinstalled on device 10e3ac847b',
+      timestamp: '14:23:02',
+      type: 'info',
+      message: 'Device 8129djsk48: No battery issues detected.',
     },
     {
       id: 18,
-      timestamp: '14:22:02',
+      timestamp: '14:23:01',
       type: 'info',
-      message: 'Analyzing anomaly cluster for 11 flagged devices',
+      message: 'AI Agent is preparing daily device health report.',
     },
     {
       id: 19,
-      timestamp: '14:22:01',
-      type: 'error',
-      message: 'Ticket escalation failed for device 22dbfa2384 - Slack webhook error',
+      timestamp: '14:23:00',
+      type: 'info',
+      message: 'All device logs synchronized with central server.',
     },
     {
       id: 20,
-      timestamp: '14:22:00',
-      type: 'warning',
-      message: 'Multiple failed ticket creation attempts detected in last 5 mins',
+      timestamp: '14:22:59',
+      type: 'info',
+      message: 'AI Agent is ready for new device onboarding.',
     },
   ];
-  const systemEvents = [
+  const aiErrorEvents = [
     {
       id: 1,
-      type: 'defect',
-      title: 'A defect has been detected',
-      message: 'Server SRV-2245: Disk failure imminent',
+      type: 'agentic-error',
+      title: 'Agentic AI: Device Classification Failure',
+      message: 'AI agent failed to classify device type for device 8129djsk48.',
       timestamp: '2 min ago',
-      details: 'Health score dropped to 23%',
-      riskLevel: 'High',
+      details: 'Manual review required. Device metrics missing.',
+      deviceId: '8129djsk48',
     },
     {
       id: 2,
-      type: 'analysis',
-      title: 'Analysis has been done',
-      message: 'NAS-112: High temperature analysis completed',
-      timestamp: '15 min ago',
-      details: 'Operating at 68°C - within acceptable range',
-      riskLevel: 'Medium',
+      type: 'agentic-error',
+      title: 'Agentic AI: Anomaly Detection Stalled',
+      message: 'AI anomaly detection did not complete for device 47dfk2847c.',
+      timestamp: '8 min ago',
+      details: 'Manual intervention needed. CPU metrics unavailable.',
+      deviceId: '47dfk2847c',
     },
     {
       id: 3,
-      type: 'ticket',
-      title: 'Ticket Opened',
-      message: 'Maintenance ticket created for WS-6678',
-      timestamp: '1 hour ago',
-      details: 'Scheduled maintenance completed successfully',
-      riskLevel: 'Low',
+      type: 'agentic-error',
+      title: 'Agentic AI: Telemetry Data Gap',
+      message: 'AI agent detected missing telemetry for device a87fd2309b.',
+      timestamp: '15 min ago',
+      details: 'Manual check required. Memory stats missing.',
+      deviceId: 'a87fd2309b',
+    },
+    {
+      id: 4,
+      type: 'agentic-error',
+      title: 'Agentic AI: Ticket Escalation Blocked',
+      message: 'AI failed to escalate ticket for device 22dbfa2384.',
+      timestamp: '22 min ago',
+      details: 'Manual escalation required. Slack webhook error.',
+      deviceId: '22dbfa2384',
+    },
+    {
+      id: 5,
+      type: 'agentic-error',
+      title: 'Agentic AI: Health Scan Timeout',
+      message: 'Agent service timeout on device 82f7d9e5a3c2.',
+      timestamp: '30 min ago',
+      details: 'Manual scan needed. Could not start health scan.',
+      deviceId: '82f7d9e5a3c2',
     },
   ];
   const getConsoleColor = (type: string) => {
@@ -319,17 +349,55 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
         return '#6b7280'; // gray
     }
   };
-  const getEventCardColor = (riskLevel: string) => {
-    switch (riskLevel) {
-      case 'High':
-        return '#ffe5e5'; // light red
-      case 'Medium':
-        return '#fffbe5'; // light yellow
-      case 'Low':
-        return '#e6ffe5'; // light green
-      default:
-        return 'white';
+
+  // Open ticket modal with pre-populated or empty fields
+  const openTicketModal = (device?: any) => {
+    if (device) {
+      ticketForm.setValues({
+        deviceId: device.deviceId || device.device_id || '',
+        deviceName: device.deviceName || device.device_name || '',
+        deviceModel: device.deviceModel || device.device_modeltype || '',
+        issueType: '',
+        description: '',
+        priority: '',
+      });
+    } else {
+      ticketForm.setValues({
+        deviceId: '',
+        deviceName: '',
+        deviceModel: '',
+        issueType: '',
+        description: '',
+        priority: '',
+      });
     }
+    setTicketModalOpen(true);
+  };
+
+  const handleTicketSubmit = (values: any) => {
+    showNotification({
+      title: 'Ticket Created',
+      message: `Ticket for device ${values.deviceId} created successfully!`,
+      color: 'green',
+      icon: <IconTicket size={16} />,
+    });
+    setTicketModalOpen(false);
+  };
+
+  // Handler to create a ticket for a device (manual)
+  const handleManualTicket = (deviceId: string) => {
+    // Find device details from mockDevices if available
+    const device = mockDevices.find((d) => d.device_id === deviceId);
+    openTicketModal({
+      deviceId,
+      deviceName: device?.device_name || '',
+      deviceModel: device?.device_modeltype || '',
+    });
+  };
+
+  // Handler to copy device ID to clipboard
+  const handleCopyDeviceId = (deviceId: string) => {
+    navigator.clipboard.writeText(deviceId);
   };
 
   return (
@@ -424,10 +492,45 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
           <Text fw={600} className="dashboard-table-title">
             Device Risk Management
           </Text>
-          <Group>
-            <ActionIcon variant="light">
-              <IconSearch size={16} />
-            </ActionIcon>
+          <Group gap="xs">
+            <Button
+              leftSection={<IconTicket size={16} />}
+              onClick={() => openTicketModal()}
+              variant="outline"
+              size="xs"
+            >
+              Create Ticket
+            </Button>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                border: '1px solid #ccc',
+                borderRadius: 4,
+                padding: '2px 6px',
+                background: '#f8f9fa',
+                minWidth: 220,
+                maxWidth: 260,
+                height: 30,
+              }}
+            >
+              <IconSearch size={16} color="#888" style={{ marginRight: 4 }} />
+              <input
+                type="text"
+                placeholder="Search by device name"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                style={{
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  fontSize: 14,
+                  width: 180,
+                  height: 24,
+                  padding: 0,
+                }}
+              />
+            </div>
           </Group>
         </Group>
         <Tabs
@@ -464,28 +567,20 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                   ),
                 },
                 {
-                  accessor: 'brand',
-                  title: 'Brand',
-                  render: (device: Device) => (
-                    <Text size="sm" className="dashboard-table-customer">
-                      {device.device_brand}
-                    </Text>
-                  ),
-                },
-                {
-                  accessor: 'region',
-                  title: 'Region',
+                  accessor: 'department',
+                  title: 'Department',
                   render: (device: Device) => (
                     <Text size="sm" className="dashboard-table-location">
-                      {device.region_name}
+                      {device.department}
                     </Text>
                   ),
                 },
                 {
-                  accessor: 'healthScore',
-                  title: 'Health Score',
+                  accessor: 'failureProbability',
+                  title: 'Failure Probability',
+                  sortable: true,
                   render: (device: Device) => {
-                    const score = getHealthScore(device);
+                    const probability = getFailureProbability(device);
                     return (
                       <Group gap="xs">
                         <RingProgress
@@ -493,30 +588,22 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                           thickness={4}
                           sections={[
                             {
-                              value: score,
-                              color: getHealthScoreColor(score),
+                              value: probability,
+                              color: getFailureProbabilityColor(probability),
                             },
                           ]}
                         />
                         <Text size="sm" fw={500} className="dashboard-table-healthscore">
-                          {score}%
+                          {probability}%
                         </Text>
                       </Group>
                     );
                   },
                 },
                 {
-                  accessor: 'riskLevel',
-                  title: 'Risk Level',
-                  render: (device: Device) => (
-                    <Badge color={getRiskColor(getRiskLevel(device))} size="sm">
-                      {getRiskLevel(device)}
-                    </Badge>
-                  ),
-                },
-                {
                   accessor: 'lastSeen',
                   title: 'Last Seen',
+                  sortable: true,
                   render: (device: Device) => (
                     <Text size="sm" className="dashboard-table-lastseen">
                       {device.device_context_datetime
@@ -555,6 +642,11 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
               page={activePage}
               onPageChange={setActivePage}
               noRecordsText="No devices at risk."
+              sortStatus={{ columnAccessor: sortBy, direction: sortDir }}
+              onSortStatusChange={({ columnAccessor, direction }) => {
+                setSortBy(columnAccessor as 'failureProbability' | 'lastSeen');
+                setSortDir(direction);
+              }}
             />
             <Group justify="space-between" mt="md">
               <Text size="sm" c="dimmed">
@@ -607,24 +699,18 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                   ),
                 },
                 {
-                  accessor: 'brand',
-                  title: 'Brand',
+                  accessor: 'department',
+                  title: 'Department',
                   render: (device: Device) => (
-                    <Text className="dashboard-table-customer">{device.device_brand}</Text>
+                    <Text className="dashboard-table-location">{device.department}</Text>
                   ),
                 },
                 {
-                  accessor: 'region',
-                  title: 'Region',
-                  render: (device: Device) => (
-                    <Text className="dashboard-table-location">{device.region_name}</Text>
-                  ),
-                },
-                {
-                  accessor: 'healthScore',
-                  title: 'Health Score',
+                  accessor: 'failureProbability',
+                  title: 'Failure Probability',
+                  sortable: true,
                   render: (device: Device) => {
-                    const score = getHealthScore(device);
+                    const probability = getFailureProbability(device);
                     return (
                       <Group gap="xs">
                         <RingProgress
@@ -632,30 +718,22 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                           thickness={4}
                           sections={[
                             {
-                              value: score,
-                              color: getHealthScoreColor(score),
+                              value: probability,
+                              color: getFailureProbabilityColor(probability),
                             },
                           ]}
                         />
                         <Text size="sm" fw={500} className="dashboard-table-healthscore">
-                          {score}%
+                          {probability}%
                         </Text>
                       </Group>
                     );
                   },
                 },
                 {
-                  accessor: 'riskLevel',
-                  title: 'Risk Level',
-                  render: (device: Device) => (
-                    <Badge color={getRiskColor(getRiskLevel(device))} size="sm">
-                      {getRiskLevel(device)}
-                    </Badge>
-                  ),
-                },
-                {
                   accessor: 'lastSeen',
                   title: 'Last Seen',
+                  sortable: true,
                   render: (device: Device) => (
                     <Text size="sm" className="dashboard-table-lastseen">
                       {device.device_context_datetime
@@ -687,16 +765,21 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                   ),
                 },
               ]}
-              records={filteredDevices.slice((allDevicesPage - 1) * 10, allDevicesPage * 10)}
-              totalRecords={filteredDevices.length}
+              records={sortedDevices.slice((allDevicesPage - 1) * 10, allDevicesPage * 10)}
+              totalRecords={sortedDevices.length}
               recordsPerPage={10}
               page={allDevicesPage}
               onPageChange={setAllDevicesPage}
               noRecordsText="No devices found."
+              sortStatus={{ columnAccessor: sortBy, direction: sortDir }}
+              onSortStatusChange={({ columnAccessor, direction }) => {
+                setSortBy(columnAccessor as 'failureProbability' | 'lastSeen');
+                setSortDir(direction);
+              }}
             />
             <Group justify="space-between" mt="md">
               <Text size="sm" c="dimmed">
-                Showing {filteredDevices.length} of {mockDevices.length} devices
+                Showing {sortedDevices.length} of {mockDevices.length} devices
               </Text>
             </Group>
           </Tabs.Panel>
@@ -754,16 +837,16 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
             </Group>
             <ScrollArea h={400} className="dashboard-system-events-scrollarea">
               <Stack gap="md">
-                {systemEvents.map((event) => (
+                {aiErrorEvents.map((event) => (
                   <Card
+                    withBorder
                     key={event.id}
                     p="sm"
                     className={`dashboard-system-event-card dashboard-system-event-card-${event.type}`}
-                    style={{ background: getEventCardColor(event.riskLevel) }}
                   >
                     <Group justify="space-between" mb="xs">
                       <Group gap="xs">
-                        {getSystemEventIcon(event.type)}
+                        <IconExclamationMark size={16} color="red" />
                         <Text
                           size="sm"
                           fw={500}
@@ -779,9 +862,32 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                     <Text size="sm" mb="xs">
                       {event.message}
                     </Text>
-                    <Text size="xs" c="dimmed">
+                    <Text size="xs" c="dimmed" mb="xs">
                       {event.details}
                     </Text>
+                    <Group gap="xs">
+                      <ActionIcon
+                        variant="light"
+                        size="sm"
+                        color="orange"
+                        onClick={() => handleManualTicket(event.deviceId)}
+                        title="Create Ticket"
+                      >
+                        <IconTicket size={14} />
+                      </ActionIcon>
+                      <ActionIcon
+                        variant="light"
+                        size="sm"
+                        color="blue"
+                        onClick={() => handleCopyDeviceId(event.deviceId)}
+                        title="Copy Device ID"
+                      >
+                        <IconCopy size={14} />
+                      </ActionIcon>
+                      <Text size="xs" c="dimmed">
+                        {event.deviceId}
+                      </Text>
+                    </Group>
                   </Card>
                 ))}
               </Stack>
@@ -813,7 +919,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                     <strong>Serial:</strong> {selectedDevice.device_id}
                   </Text>
                   <Text size="sm" className="dashboard-device-info-customer">
-                    <strong>Customer:</strong> {selectedDevice.customer_id}
+                    <strong>Employee:</strong> {selectedDevice.employee_id}
                   </Text>
                   <Text size="sm" className="dashboard-device-info-location">
                     <strong>Location:</strong> {selectedDevice.region_name}
@@ -827,28 +933,22 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                   </Text>
                   <Group>
                     <Text size="sm" className="dashboard-device-status-health-label">
-                      <strong>Health Score:</strong>
+                      <strong>Failure Probability:</strong>
                     </Text>
                     <RingProgress
                       size={40}
                       thickness={4}
                       sections={[
                         {
-                          value: getHealthScore(selectedDevice),
-                          color: getHealthScoreColor(getHealthScore(selectedDevice)),
+                          value: getFailureProbability(selectedDevice),
+                          color: getFailureProbabilityColor(getFailureProbability(selectedDevice)),
                         },
                       ]}
                     />
                     <Text size="sm" fw={500} className="dashboard-device-status-healthscore">
-                      {getHealthScore(selectedDevice)}%
+                      {getFailureProbability(selectedDevice)}%
                     </Text>
                   </Group>
-                  <Text size="sm" className="dashboard-device-status-risk">
-                    <strong>Risk Level:</strong>{' '}
-                    <Badge color={getRiskColor(getRiskLevel(selectedDevice))} size="sm">
-                      {getRiskLevel(selectedDevice)}
-                    </Badge>
-                  </Text>
                   <Text size="sm" className="dashboard-device-status-warranty">
                     <strong>BIOS Version:</strong>{' '}
                     <Badge color="blue" size="sm">
@@ -948,11 +1048,12 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                 onClick={handleNotifyOwner}
                 className="dashboard-device-modal-notify-btn"
               >
-                Notify Owner
+                Notify Employee
               </Button>
               <Button
                 leftSection={<IconTicket size={16} />}
-                onClick={handleGenerateTicket}
+                onClick={undefined}
+                disabled
                 className="dashboard-device-modal-ticket-btn"
               >
                 Generate Ticket
@@ -960,6 +1061,101 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
             </Group>
           </Stack>
         )}
+      </Modal>
+
+      {/* Ticket Modal */}
+      <Modal
+        opened={ticketModalOpen}
+        onClose={() => setTicketModalOpen(false)}
+        title="Create Ticket"
+        size="lg"
+      >
+        <form onSubmit={ticketForm.onSubmit(handleTicketSubmit)}>
+          <Stack gap="md">
+            <Group grow>
+              <Stack gap={0} style={{ flex: 1 }}>
+                <Text size="sm" fw={500} mb={2}>
+                  Device ID
+                </Text>
+                <input
+                  type="text"
+                  {...ticketForm.getInputProps('deviceId')}
+                  disabled={!!ticketForm.values.deviceId}
+                  style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc' }}
+                />
+              </Stack>
+              <Stack gap={0} style={{ flex: 1 }}>
+                <Text size="sm" fw={500} mb={2}>
+                  Device Name
+                </Text>
+                <input
+                  type="text"
+                  {...ticketForm.getInputProps('deviceName')}
+                  disabled={!!ticketForm.values.deviceName}
+                  style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc' }}
+                />
+              </Stack>
+              <Stack gap={0} style={{ flex: 1 }}>
+                <Text size="sm" fw={500} mb={2}>
+                  Device Model
+                </Text>
+                <input
+                  type="text"
+                  {...ticketForm.getInputProps('deviceModel')}
+                  disabled={!!ticketForm.values.deviceModel}
+                  style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc' }}
+                />
+              </Stack>
+            </Group>
+            <Group grow>
+              <Stack gap={0} style={{ flex: 1 }}>
+                <Text size="sm" fw={500} mb={2}>
+                  Issue Type
+                </Text>
+                <select
+                  {...ticketForm.getInputProps('issueType')}
+                  style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc' }}
+                >
+                  <option value="">Select Issue Type</option>
+                  <option value="Hardware">Hardware</option>
+                  <option value="Software">Software</option>
+                  <option value="Network">Network</option>
+                  <option value="Performance">Performance</option>
+                  <option value="Other">Other</option>
+                </select>
+              </Stack>
+              <Stack gap={0} style={{ flex: 1 }}>
+                <Text size="sm" fw={500} mb={2}>
+                  Priority
+                </Text>
+                <select
+                  {...ticketForm.getInputProps('priority')}
+                  style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc' }}
+                >
+                  <option value="">Select Priority</option>
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                </select>
+              </Stack>
+            </Group>
+            <Stack gap={0}>
+              <Text size="sm" fw={500} mb={2}>
+                Description
+              </Text>
+              <textarea
+                {...ticketForm.getInputProps('description')}
+                rows={3}
+                style={{ width: '100%', padding: 8, borderRadius: 4, border: '1px solid #ccc' }}
+              />
+            </Stack>
+            <Group justify="flex-end">
+              <Button type="submit" leftSection={<IconTicket size={16} />}>
+                Submit Ticket
+              </Button>
+            </Group>
+          </Stack>
+        </form>
       </Modal>
     </Stack>
   );

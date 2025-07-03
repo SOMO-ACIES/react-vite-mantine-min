@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
+  IconBell,
   IconBrain,
-  IconBuilding,
+  IconCheck,
+  IconCopy,
   IconEye,
   IconMail,
-  IconMapPin,
   IconPhone,
   IconRefresh,
   IconTrendingUp,
@@ -17,6 +18,7 @@ import {
   Badge,
   Button,
   Card,
+  Flex,
   Grid,
   Group,
   Modal,
@@ -28,11 +30,10 @@ import {
   Text,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import type { Customer } from '../../data/dummyData';
+import { showNotification } from '@mantine/notifications';
+import { mockCustomers } from '../../data/mockDataO';
 
-interface FredDashboardProps {
-  data: any;
-}
+interface FredDashboardProps {}
 
 interface CustomerActivity {
   id: number;
@@ -47,20 +48,55 @@ interface CustomerActivity {
   satisfaction?: number;
 }
 
-const FredDashboard: React.FC<FredDashboardProps> = ({ data }) => {
+const FredDashboard: React.FC<FredDashboardProps> = () => {
   const [opened, { open, close }] = useDisclosure(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<string>('overview');
-  const [supportLevelFilter, setSupportLevelFilter] = useState<string>('All Support Levels');
   const [locationFilter, setLocationFilter] = useState<string>('All Locations');
   const [activePage, setActivePage] = useState(1);
   const [agentErrors, setAgentErrors] = useState([
-    { time: '14:22:18', message: 'Agent service timeout on device 82f7d9e5a3c2' },
-    { time: '14:21:45', message: 'Failed to analyze telemetry for device a3b2c1d4e5f6' },
-    { time: '14:21:12', message: 'Connection lost to monitoring service' },
-    { time: '14:20:58', message: 'Disk prediction model inference timeout' },
-    { time: '14:20:33', message: 'Unable to create ticket for device 7f8e9d0c1b2a' },
+    {
+      time: '14:22:18',
+      message: 'Agent service timeout on device 82f7d9e5a3c2',
+      customer_id: 'CUST001',
+      ticket_id: 'TICK1001',
+    },
+    {
+      time: '14:21:45',
+      message: 'Failed to analyze telemetry for device a3b2c1d4e5f6',
+      customer_id: 'CUST002',
+      ticket_id: 'TICK1002',
+    },
+    {
+      time: '14:21:12',
+      message: 'Connection lost to monitoring service',
+      customer_id: 'CUST003',
+      ticket_id: 'TICK1003',
+    },
+    {
+      time: '14:20:58',
+      message: 'Disk prediction model inference timeout',
+      customer_id: 'CUST004',
+      ticket_id: 'TICK1004',
+    },
+    {
+      time: '14:20:33',
+      message: 'Unable to create ticket for device 7f8e9d0c1b2a',
+      customer_id: 'CUST005',
+      ticket_id: 'TICK1005',
+    },
   ]);
+
+  // State to track copied fields for check icon feedback
+  const [copied, setCopied] = useState<{ [key: string]: boolean }>({});
+
+  const handleCopy = (key: string, value: string) => {
+    navigator.clipboard.writeText(value);
+    setCopied((prev) => ({ ...prev, [key]: true }));
+    setTimeout(() => {
+      setCopied((prev) => ({ ...prev, [key]: false }));
+    }, 1500);
+  };
 
   // Recent Customer Activities dummy data
   const customerActivities: CustomerActivity[] = [
@@ -181,28 +217,17 @@ const FredDashboard: React.FC<FredDashboardProps> = ({ data }) => {
         {
           time: new Date().toLocaleTimeString(),
           message: `Error ${Math.floor(Math.random() * 1000)}: Failed to process device telemetry`,
+          customer_id: '',
+          ticket_id: '',
         },
       ]);
     }, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  const handleCustomerView = (customer: Customer) => {
+  const handleCustomerView = (customer: any) => {
     setSelectedCustomer(customer);
     open();
-  };
-
-  const getSupportLevelColor = (level: string) => {
-    switch (level) {
-      case 'Enterprise':
-        return 'violet';
-      case 'Premium':
-        return 'blue';
-      case 'Basic':
-        return 'gray';
-      default:
-        return 'gray';
-    }
   };
 
   const getActivityTypeColor = (type: string) => {
@@ -237,47 +262,24 @@ const FredDashboard: React.FC<FredDashboardProps> = ({ data }) => {
     }
   };
 
-  const expandedCustomers = [
-    ...data.customers,
-    {
-      id: 'CUST-003',
-      name: 'TechSolutions Inc.',
-      contact: 'Mike Chen',
-      location: 'HQ Building',
-      supportLevel: 'Basic' as const,
-      deviceCount: 67,
-    },
-    {
-      id: 'CUST-004',
-      name: 'Design Studios Ltd',
-      contact: 'Emma Wilson',
-      location: 'Creative Hub',
-      supportLevel: 'Premium' as const,
-      deviceCount: 34,
-    },
-    {
-      id: 'CUST-005',
-      name: 'HealthCare Plus',
-      contact: 'Dr. Robert Smith',
-      location: 'Medical Center',
-      supportLevel: 'Enterprise' as const,
-      deviceCount: 189,
-    },
+  // Map mockCustomers to the structure expected by the table (no ticket_id)
+  const expandedCustomers = mockCustomers.map((cust) => ({
+    id: cust.customer_id,
+    name: cust.customer_name,
+    email: cust.customer_email,
+    phone: cust.customer_phone,
+    location: `${cust.customer_location_state}, ${cust.customer_location_country}`,
+    customer_id: cust.customer_id,
+  }));
+
+  // Get unique locations for the filter
+  const locationOptions = [
+    'All Locations',
+    ...Array.from(new Set(expandedCustomers.map((c) => c.location))).sort(),
   ];
 
-  // Filter customers based on selected filters
   const filteredCustomers = expandedCustomers.filter((customer) => {
-    const supportLevelMatch =
-      supportLevelFilter === 'All Support Levels' || customer.supportLevel === supportLevelFilter;
-    const locationMatch =
-      locationFilter === 'All Locations' ||
-      customer.location.includes(
-        locationFilter
-          .replace('Data Center 3', 'Data Center')
-          .replace('Branch Office', 'Branch')
-          .replace('HQ', 'HQ')
-      );
-    return supportLevelMatch && locationMatch;
+    return locationFilter === 'All Locations' || customer.location === locationFilter;
   });
 
   return (
@@ -379,29 +381,35 @@ const FredDashboard: React.FC<FredDashboardProps> = ({ data }) => {
           <Text fw={600} className="fred-dashboard-overview-title">
             Customer Overview
           </Text>
-          <Group className="fred-dashboard-overview-filters-group">
-            <Select
-              data={['All Support Levels', 'Enterprise', 'Premium', 'Basic']}
-              value={supportLevelFilter}
-              onChange={(value) => setSupportLevelFilter(value || 'All Support Levels')}
+          <Flex gap="xs">
+            <Button
+              leftSection={<IconPhone size={16} />}
+              onClick={() =>
+                showNotification({
+                  title: 'Schedule Call',
+                  message: 'Schedule call feature coming soon!',
+                  color: 'blue',
+                  icon: <IconPhone size={16} />,
+                })
+              }
+              variant="outline"
               size="sm"
-              className="fred-dashboard-overview-support-select"
-            />
-            <Select
-              data={[
-                'All Locations',
-                'Data Center 3',
-                'Branch Office',
-                'HQ Building',
-                'Creative Hub',
-                'Medical Center',
-              ]}
-              value={locationFilter}
-              onChange={(value) => setLocationFilter(value || 'All Locations')}
-              size="sm"
-              className="fred-dashboard-overview-location-select"
-            />
-          </Group>
+              style={{ marginLeft: 8 }}
+            >
+              Schedule Call
+            </Button>
+            <Group className="fred-dashboard-overview-filters-group">
+              <Select
+                data={locationOptions}
+                value={locationFilter}
+                onChange={(value) => setLocationFilter(value || 'All Locations')}
+                size="sm"
+                searchable
+                className="fred-dashboard-overview-location-select"
+                placeholder="Filter by Location"
+              />
+            </Group>
+          </Flex>
         </Group>
 
         <DataTable
@@ -410,43 +418,71 @@ const FredDashboard: React.FC<FredDashboardProps> = ({ data }) => {
               accessor: 'name',
               title: 'Customer',
               render: (customer) => (
-                <Group gap="sm" className="fred-dashboard-customer-avatar-group">
+                <Group gap="xs" className="fred-dashboard-customer-avatar-group">
                   <Avatar size="sm" color="indigo">
                     {customer.name.charAt(0)}
                   </Avatar>
                   <Text size="sm" fw={500} className="fred-dashboard-customer-name">
                     {customer.name}
                   </Text>
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    onClick={() => handleCopy(`table-id-${customer.id}`, customer.customer_id)}
+                    title="Copy Customer ID"
+                  >
+                    {copied[`table-id-${customer.id}`] ? (
+                      <IconCheck size={14} color="green" />
+                    ) : (
+                      <IconCopy size={14} />
+                    )}
+                  </ActionIcon>
+                  <Text size="xs" c="dimmed">
+                    ID: {customer.customer_id}
+                  </Text>
                 </Group>
               ),
             },
             {
-              accessor: 'contact',
-              title: 'Contact',
+              accessor: 'email',
+              title: 'Email',
               render: (customer) => (
-                <Text className="fred-dashboard-customer-contact">{customer.contact}</Text>
+                <Group gap={4}>
+                  <Text size="sm">{customer.email}</Text>
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    onClick={() => handleCopy(`table-email-${customer.id}`, customer.email)}
+                    title="Copy Email"
+                  >
+                    {copied[`table-email-${customer.id}`] ? (
+                      <IconCheck size={14} color="green" />
+                    ) : (
+                      <IconCopy size={14} />
+                    )}
+                  </ActionIcon>
+                </Group>
               ),
             },
             {
-              accessor: 'supportLevel',
-              title: 'Support Level',
+              accessor: 'phone',
+              title: 'Phone',
               render: (customer) => (
-                <Badge
-                  color={getSupportLevelColor(customer.supportLevel)}
-                  size="sm"
-                  className="fred-dashboard-customer-support-badge"
-                >
-                  {customer.supportLevel}
-                </Badge>
-              ),
-            },
-            {
-              accessor: 'deviceCount',
-              title: 'Devices',
-              render: (customer) => (
-                <Text size="sm" fw={500} className="fred-dashboard-customer-device-count">
-                  {customer.deviceCount}
-                </Text>
+                <Group gap={4}>
+                  <Text size="sm">{customer.phone}</Text>
+                  <ActionIcon
+                    size="xs"
+                    variant="subtle"
+                    onClick={() => handleCopy(`table-phone-${customer.id}`, customer.phone)}
+                    title="Copy Phone"
+                  >
+                    {copied[`table-phone-${customer.id}`] ? (
+                      <IconCheck size={14} color="green" />
+                    ) : (
+                      <IconCopy size={14} />
+                    )}
+                  </ActionIcon>
+                </Group>
               ),
             },
             {
@@ -462,14 +498,35 @@ const FredDashboard: React.FC<FredDashboardProps> = ({ data }) => {
               accessor: 'actions',
               title: 'Actions',
               render: (customer) => (
-                <ActionIcon
-                  variant="light"
-                  size="sm"
-                  onClick={() => handleCustomerView(customer)}
-                  className="fred-dashboard-customer-view-icon"
-                >
-                  <IconEye size={14} />
-                </ActionIcon>
+                <Group gap={2}>
+                  <ActionIcon
+                    variant="light"
+                    size="sm"
+                    onClick={() => handleCustomerView(customer)}
+                    className="fred-dashboard-customer-view-icon"
+                    title="View Details"
+                  >
+                    <IconEye size={14} />
+                  </ActionIcon>
+                  <ActionIcon
+                    size="sm"
+                    variant="subtle"
+                    component="a"
+                    href={`mailto:${customer.email}`}
+                    title="Send Email"
+                  >
+                    <IconMail size={14} />
+                  </ActionIcon>
+                  <ActionIcon
+                    size="sm"
+                    variant="subtle"
+                    component="a"
+                    href={`tel:${customer.phone}`}
+                    title="Call Customer"
+                  >
+                    <IconPhone size={14} />
+                  </ActionIcon>
+                </Group>
               ),
             },
           ]}
@@ -494,31 +551,64 @@ const FredDashboard: React.FC<FredDashboardProps> = ({ data }) => {
             <Group justify="space-between" mb="md">
               <Group>
                 <IconBrain size={20} color="#6366f1" />
-                <Text fw={600}>AI Agent Console</Text>
+                <Text fw={600}>AI Agent Error Console</Text>
               </Group>
               <Badge color="blue" variant="light">
                 Live
               </Badge>
             </Group>
             <ScrollArea h={400}>
-              <div
-                style={{
-                  minHeight: '400px',
-                  backgroundColor: '#0f172a',
-                  borderRadius: '6px',
-                  padding: '12px',
-                  fontFamily: 'Monaco, Consolas, "Courier New", monospace',
-                  fontSize: '12px',
-                  lineHeight: '1.4',
-                }}
-              >
+              <Stack gap="md" className="fred-dashboard-activities-stack">
                 {agentErrors.map((notification, idx) => (
-                  <div key={idx} style={{ marginBottom: '4px' }}>
-                    <span style={{ color: '#64748b' }}>[{notification.time}]</span>{' '}
-                    <span style={{ color: '#ef4444' }}>{notification.message}</span>
-                  </div>
+                  <Card key={idx} withBorder p="sm" className="fred-dashboard-activity-card">
+                    <Group justify="space-between" mb="xs">
+                      <Group gap="xs">
+                        <Badge color="red" size="sm">
+                          Error
+                        </Badge>
+                        <Text size="xs" c="dimmed">
+                          {notification.time}
+                        </Text>
+                      </Group>
+                      <Group gap={2}>
+                        <ActionIcon
+                          size="xs"
+                          variant="subtle"
+                          onClick={() => {
+                            const text = `Customer ID: ${notification.customer_id}\nTicket ID: ${notification.ticket_id}`;
+                            handleCopy(`error-msg-${idx}`, text);
+                          }}
+                          title="Copy Customer & Ticket ID"
+                        >
+                          {copied[`error-msg-${idx}`] ? (
+                            <IconCheck size={14} color="blue" />
+                          ) : (
+                            <IconCopy size={14} color="blue" />
+                          )}
+                        </ActionIcon>
+                        <ActionIcon
+                          size="xs"
+                          variant="subtle"
+                          onClick={() =>
+                            showNotification({
+                              title: 'Notify Customer',
+                              message: 'Manual customer notification triggered.',
+                              color: 'orange',
+                              icon: <IconBell size={14} />,
+                            })
+                          }
+                          title="Notify Customer"
+                        >
+                          <IconBell size={14} />
+                        </ActionIcon>
+                      </Group>
+                    </Group>
+                    <Text size="sm" fw={500} mb="xs">
+                      {notification.message}
+                    </Text>
+                  </Card>
                 ))}
-              </div>
+              </Stack>
             </ScrollArea>
           </Card>
         </Grid.Col>
@@ -613,56 +703,71 @@ const FredDashboard: React.FC<FredDashboardProps> = ({ data }) => {
               <Grid.Col span={6}>
                 <Stack gap="sm" className="fred-dashboard-modal-contact-stack">
                   <Text fw={600} className="fred-dashboard-modal-contact-title">
-                    Contact Information
+                    Customer Information
                   </Text>
-                  <Group gap="sm" className="fred-dashboard-modal-contact-name-group">
-                    <IconBuilding size={16} />
-                    <Text size="sm" className="fred-dashboard-modal-contact-name">
+                  <Group gap="xs" align="center">
+                    <Text size="sm" fw={500}>
                       {selectedCustomer.name}
                     </Text>
-                  </Group>
-                  <Group gap="sm" className="fred-dashboard-modal-contact-person-group">
-                    <IconUsers size={16} />
-                    <Text size="sm" className="fred-dashboard-modal-contact-person">
-                      {selectedCustomer.contact}
-                    </Text>
-                  </Group>
-                  <Group gap="sm" className="fred-dashboard-modal-contact-location-group">
-                    <IconMapPin size={16} />
-                    <Text size="sm" className="fred-dashboard-modal-contact-location">
-                      {selectedCustomer.location}
-                    </Text>
-                  </Group>
-                  <Group gap="sm" className="fred-dashboard-modal-contact-support-group">
-                    <Text size="sm" className="fred-dashboard-modal-contact-support-label">
-                      <strong>Support Level:</strong>
-                    </Text>
-                    <Badge
-                      color={getSupportLevelColor(selectedCustomer.supportLevel)}
-                      className="fred-dashboard-modal-contact-support-badge"
+                    <ActionIcon
+                      size="xs"
+                      variant="subtle"
+                      onClick={() =>
+                        handleCopy(
+                          `modal-id-${selectedCustomer.customer_id}`,
+                          selectedCustomer.customer_id
+                        )
+                      }
+                      title="Copy Customer ID"
                     >
-                      {selectedCustomer.supportLevel}
-                    </Badge>
+                      {copied[`modal-id-${selectedCustomer.customer_id}`] ? (
+                        <IconCheck size={14} color="green" />
+                      ) : (
+                        <IconCopy size={14} />
+                      )}
+                    </ActionIcon>
+                    <Text size="xs" c="dimmed">
+                      ID: {selectedCustomer.customer_id}
+                    </Text>
+                  </Group>
+                  <Group gap="xs" align="center">
+                    <Text size="sm">Email: {selectedCustomer.email}</Text>
+                    <ActionIcon
+                      size="xs"
+                      variant="subtle"
+                      onClick={() =>
+                        handleCopy(
+                          `modal-email-${selectedCustomer.customer_id}`,
+                          selectedCustomer.email
+                        )
+                      }
+                      title="Copy Email"
+                    >
+                      {copied[`modal-email-${selectedCustomer.customer_id}`] ? (
+                        <IconCheck size={14} color="green" />
+                      ) : (
+                        <IconCopy size={14} />
+                      )}
+                    </ActionIcon>
+                  </Group>
+                  <Group gap="xs" align="center">
+                    <Text size="sm">Phone: {selectedCustomer.phone}</Text>
+                  </Group>
+                  <Group gap="xs" align="center">
+                    <Text size="sm">Location: {selectedCustomer.location}</Text>
                   </Group>
                 </Stack>
               </Grid.Col>
-
               <Grid.Col span={6}>
                 <Stack gap="sm" className="fred-dashboard-modal-account-stack">
                   <Text fw={600} className="fred-dashboard-modal-account-title">
-                    Account Overview
+                    Account Details
                   </Text>
-                  <Text size="sm" className="fred-dashboard-modal-account-device-count">
-                    <strong>Device Count:</strong> {selectedCustomer.deviceCount}
+                  <Text size="sm">
+                    <strong>Created At:</strong> {selectedCustomer.created_at}
                   </Text>
-                  <Text size="sm" className="fred-dashboard-modal-account-manager">
-                    <strong>Account Manager:</strong> Fred Johnson
-                  </Text>
-                  <Text size="sm" className="fred-dashboard-modal-account-contract-start">
-                    <strong>Contract Start:</strong> Jan 2023
-                  </Text>
-                  <Text size="sm" className="fred-dashboard-modal-account-next-review">
-                    <strong>Next Review:</strong> Dec 2024
+                  <Text size="sm">
+                    <strong>Updated At:</strong> {selectedCustomer.updated_at}
                   </Text>
                 </Stack>
               </Grid.Col>

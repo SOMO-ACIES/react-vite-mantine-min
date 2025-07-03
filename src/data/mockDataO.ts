@@ -163,6 +163,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY001',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP001',
+    department: 'IT',
   },
   {
     device_id: 'DEV002',
@@ -206,6 +208,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY002',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP002',
+    department: 'HR',
   },
   // Continue with remaining 8 devices...
   {
@@ -250,6 +254,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY003',
     udc_name: 'Business Channel',
     udc_version: '1.0',
+    employee_id: 'EMP003',
+    department: 'Finance',
   },
   // Add 7 more devices with similar structure...
   {
@@ -294,6 +300,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY004',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP004',
+    department: 'Marketing',
   },
   {
     device_id: 'DEV005',
@@ -337,6 +345,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY005',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP005',
+    department: 'Sales',
   },
   {
     device_id: 'DEV006',
@@ -380,6 +390,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY006',
     udc_name: 'Gaming Channel',
     udc_version: '1.0',
+    employee_id: 'EMP006',
+    department: 'Operations',
   },
   {
     device_id: 'DEV007',
@@ -423,6 +435,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY007',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP007',
+    department: 'Support',
   },
   {
     device_id: 'DEV008',
@@ -466,6 +480,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY008',
     udc_name: 'Business Channel',
     udc_version: '1.0',
+    employee_id: 'EMP008',
+    department: 'Engineering',
   },
   {
     device_id: 'DEV009',
@@ -509,6 +525,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY009',
     udc_name: 'Gaming Channel',
     udc_version: '1.0',
+    employee_id: 'EMP009',
+    department: 'Legal',
   },
   {
     device_id: 'DEV010',
@@ -552,6 +570,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY010',
     udc_name: 'Gaming Channel',
     udc_version: '1.0',
+    employee_id: 'EMP010',
+    department: 'Admin',
   },
   {
     device_id: 'DEV011',
@@ -595,6 +615,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY011',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP011',
+    department: 'IT',
   },
   {
     device_id: 'DEV012',
@@ -638,6 +660,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY012',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP012',
+    department: 'HR',
   },
   {
     device_id: 'DEV013',
@@ -681,6 +705,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY013',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP013',
+    department: 'Finance',
   },
   {
     device_id: 'DEV014',
@@ -724,6 +750,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY014',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP014',
+    department: 'Marketing',
   },
   {
     device_id: 'DEV015',
@@ -767,6 +795,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY015',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP015',
+    department: 'Engineering',
   },
   {
     device_id: 'DEV016',
@@ -810,6 +840,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY016',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP016',
+    department: 'Legal',
   },
   {
     device_id: 'DEV017',
@@ -853,6 +885,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY017',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP017',
+    department: 'Support',
   },
   {
     device_id: 'DEV018',
@@ -896,6 +930,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY018',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP018',
+    department: 'Finance',
   },
   {
     device_id: 'DEV019',
@@ -939,6 +975,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY019',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP019',
+    department: 'Support',
   },
   {
     device_id: 'DEV020',
@@ -982,6 +1020,8 @@ export const mockDevices: Device[] = [
     udc_key: 'KEY020',
     udc_name: 'Consumer Channel',
     udc_version: '1.0',
+    employee_id: 'EMP020',
+    department: 'Admin',
   },
 ];
 
