@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   IconActivity,
   IconBrain,
@@ -31,7 +31,7 @@ import {
 import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import { showNotification } from '@mantine/notifications';
-import { mockDevices } from '../../data/mockDataO';
+import { getDevices } from '../../api';
 
 import './Dashboard.module.css';
 import 'mantine-datatable/styles.css';
@@ -40,7 +40,7 @@ interface RahulDashboardProps {
   // data: any; // No longer needed
 }
 
-type Device = (typeof mockDevices)[number];
+type Device = any; // Or define the Device type based on your API response if you want stricter typing.
 
 const RahulDashboard: React.FC<RahulDashboardProps> = () => {
   const [opened, { open, close }] = useDisclosure(false);
@@ -53,6 +53,9 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
   const [brandFilter, setBrandFilter] = useState<string>('All Brands');
   const [ticketModalOpen, setTicketModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const ticketForm = useForm({
     initialValues: {
@@ -71,6 +74,37 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
       priority: (v: string) => (v ? null : 'Priority is required'),
     },
   });
+
+  // Fetch devices from API
+  useEffect(() => {
+    async function fetchDevices() {
+      setLoading(true);
+      setError(null);
+      try {
+        const params: any = {};
+        if (locationFilter !== 'All Locations') {
+          params.region_name = locationFilter;
+        }
+        if (brandFilter !== 'All Brands') {
+          params.device_brand = brandFilter;
+        }
+        if (searchTerm) {
+          params.search = searchTerm;
+        }
+        // Pagination
+        params.page = deviceTab === 'at-risk' ? activePage : allDevicesPage;
+        params.limit = 10;
+        const res = await getDevices(params);
+        setDevices(res.data || []);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load devices');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchDevices();
+    // eslint-disable-next-line
+  }, [locationFilter, brandFilter, searchTerm, deviceTab, activePage, allDevicesPage]);
 
   const handleDeviceView = (device: Device) => {
     setSelectedDevice(device);
@@ -130,7 +164,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   // Filtering logic
-  const filteredDevices = mockDevices.filter((device) => {
+  const filteredDevices = devices.filter((device) => {
     const locationMatch =
       locationFilter === 'All Locations' || device.region_name === locationFilter;
     const brandMatch = brandFilter === 'All Brands' || device.device_brand === brandFilter;
@@ -158,11 +192,11 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
   // For filter dropdowns
   const locationOptions = [
     'All Locations',
-    ...Array.from(new Set(mockDevices.map((d) => d.region_name))).sort(),
+    ...Array.from(new Set(devices.map((d) => d.region_name))).sort(),
   ];
   const brandOptions = [
     'All Brands',
-    ...Array.from(new Set(mockDevices.map((d) => d.device_brand))).sort(),
+    ...Array.from(new Set(devices.map((d) => d.device_brand))).sort(),
   ];
 
   // Demo notifications/events (unchanged)
@@ -386,8 +420,8 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
 
   // Handler to create a ticket for a device (manual)
   const handleManualTicket = (deviceId: string) => {
-    // Find device details from mockDevices if available
-    const device = mockDevices.find((d) => d.device_id === deviceId);
+    // Find device details from devices if available
+    const device = devices.find((d) => d.device_id === deviceId);
     openTicketModal({
       deviceId,
       deviceName: device?.device_name || '',
@@ -402,6 +436,8 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
 
   return (
     <Stack gap="lg" className="dashboard-stack">
+      {loading && <Text c="dimmed">Loading devices...</Text>}
+      {error && <Text c="red">{error}</Text>}
       {/* Header */}
       <Group justify="space-between" className="dashboard-header-group">
         <Group className="dashboard-header-title-group">
@@ -779,7 +815,7 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
             />
             <Group justify="space-between" mt="md">
               <Text size="sm" c="dimmed">
-                Showing {sortedDevices.length} of {mockDevices.length} devices
+                Showing {sortedDevices.length} of {devices.length} devices
               </Text>
             </Group>
           </Tabs.Panel>
