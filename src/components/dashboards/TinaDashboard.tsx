@@ -325,19 +325,19 @@ const TinaDashboard: React.FC<TinaDashboardProps> = () => {
               <Stack gap="md">
                 {liveIssueEvents.map((event) => (
                   <Card key={event.id} withBorder p="sm">
-                    <Group justify="space-between">
+                  <Group justify="space-between">
                       <Text size="sm">{event.time}</Text>
                       <Badge color={event.badge.color} size="xs">
                         {event.badge.text}
-                      </Badge>
-                    </Group>
-                    <Text size="sm" fw={500}>
+                    </Badge>
+                  </Group>
+                  <Text size="sm" fw={500}>
                       {event.title}
-                    </Text>
-                    <Text size="xs" c="dimmed">
+                  </Text>
+                  <Text size="xs" c="dimmed">
                       {event.subtitle}
-                    </Text>
-                  </Card>
+                  </Text>
+                </Card>
                 ))}
               </Stack>
             </ScrollArea>
@@ -473,7 +473,7 @@ const TinaDashboard: React.FC<TinaDashboardProps> = () => {
                 </Badge>
                 <Badge color={getTypeColor(selectedIssue.issue_type_id)} variant="light">
                   {selectedIssue.issue_type_id}
-                </Badge>
+                  </Badge>
               </Group>
               <ActionIcon onClick={close} variant="light">
                 <IconX size={16} />
@@ -586,7 +586,7 @@ const TinaDashboard: React.FC<TinaDashboardProps> = () => {
                           <Badge
                             color="yellow"
                             size="sm"
-                            style={{
+                      style={{
                               position: 'absolute',
                               top: '8px',
                               right: '8px',

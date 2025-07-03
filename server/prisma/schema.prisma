@@ -1,0 +1,222 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Device {
+  id                        String   @id @default(cuid())
+  device_id                 String   @unique
+  customer_id               String
+  context_id                String
+  dataset_id                String
+  device_context_datetime   DateTime
+  device_context_id         String
+  device_bios_version       String
+  device_brand              String
+  device_ec_version         String
+  device_enclosuretype      String
+  device_family             String
+  device_id2                String
+  device_info_datetime      DateTime
+  device_manufacturer       String
+  device_modeltype          String
+  device_name               String
+  device_purchase_date      DateTime
+  device_smbios_version     String
+  device_subbrand           String
+  os_country                String
+  os_language               String
+  os_name                   String
+  os_update_description     String
+  os_update_title           String
+  os_version                String
+  country_code              String
+  country_name              String
+  language_code             String
+  language_name             String
+  region_info_datetime      DateTime
+  region_name               String
+  report_time               DateTime
+  schema_ver                String
+  subscription_id           String
+  subscription_ids          String
+  udc_channel               String
+  udc_id                    String
+  udc_info_datetime         DateTime
+  udc_key                   String
+  udc_name                  String
+  udc_version               String
+  
+  // Computed fields
+  healthScore               Int?
+  riskLevel                 String
+  lastSeen                  DateTime?
+  warrantyStatus            Boolean   @default(false)
+  warrantyExpiryDate        DateTime?
+  
+  // Telemetry data
+  temperature               Float?
+  diskUsage                 Float?
+  cpuUsage                  Float?
+  memoryUsage               Float?
+  powerConsumption          Float?
+  
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  
+  // Relations
+  customer                  Customer  @relation(fields: [customer_id], references: [customer_id])
+  tickets                   Ticket[]
+  telemetryData             TelemetryData[]
+  
+  @@map("devices")
+}
+
+model Customer {
+  id                        String    @id @default(cuid())
+  customer_id               String    @unique
+  name                      String
+  contact                   String
+  email                     String?
+  phone                     String?
+  location                  String
+  supportLevel              String
+  deviceCount               Int       @default(0)
+  contractStart             DateTime?
+  contractEnd               DateTime?
+  accountManager            String?
+  status                    String @default("ACTIVE")
+  
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  
+  // Relations
+  devices                   Device[]
+  tickets                   Ticket[]
+  
+  @@map("customers")
+}
+
+model Ticket {
+  id                        String    @id @default(cuid())
+  ticket_id                 String    @unique
+  device_id                 String
+  customer_id               String
+  issue                     String
+  description               String?
+  status                    String
+  priority                  String
+  confidence                Int?
+  warranty                  Boolean   @default(false)
+  assignedTo                String?
+  estimatedResolution       DateTime?
+  
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  resolvedAt                DateTime?
+  
+  // Relations
+  device                    Device    @relation(fields: [device_id], references: [device_id])
+  customer                  Customer  @relation(fields: [customer_id], references: [customer_id])
+  telemetrySnapshot         TicketTelemetry?
+  
+  @@map("tickets")
+}
+
+model TicketTelemetry {
+  id                        String    @id @default(cuid())
+  ticket_id                 String    @unique
+  readErrorRate             Float?
+  temperature               Float?
+  reallocatedSectors        Int?
+  spinRetryCount            Int?
+  powerOnHours              Int?
+  smartStatus               String?
+  
+  createdAt                 DateTime  @default(now())
+  
+  // Relations
+  ticket                    Ticket    @relation(fields: [ticket_id], references: [ticket_id])
+  
+  @@map("ticket_telemetry")
+}
+
+model TelemetryData {
+  id                        String    @id @default(cuid())
+  device_id                 String
+  timestamp                 DateTime
+  temperature               Float?
+  cpuUsage                  Float?
+  memoryUsage               Float?
+  diskUsage                 Float?
+  powerConsumption          Float?
+  networkLatency            Float?
+  errorCount                Int?
+  
+  createdAt                 DateTime  @default(now())
+  
+  // Relations
+  device                    Device    @relation(fields: [device_id], references: [device_id])
+  
+  @@map("telemetry_data")
+}
+
+model User {
+  id                        String    @id @default(cuid())
+  email                     String    @unique
+  username                  String    @unique
+  password                  String
+  firstName                 String
+  lastName                  String
+  role                      String  @default("USER")
+  isActive                  Boolean   @default(true)
+  lastLogin                 DateTime?
+  
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  
+  @@map("users")
+}
+
+model SystemEvent {
+  id                        String    @id @default(cuid())
+  type                      String
+  title                     String
+  message                   String
+  details                   String?
+  severity                  String
+  source                    String?
+  metadata                  String?   // JSON string for additional data
+  
+  createdAt                 DateTime  @default(now())
+  
+  @@map("system_events")
+}
+
+model Analytics {
+  id                        String    @id @default(cuid())
+  date                      DateTime
+  totalDevices              Int
+  devicesOnline             Int
+  devicesOffline            Int
+  highRiskDevices           Int
+  mediumRiskDevices         Int
+  lowRiskDevices            Int
+  totalTickets              Int
+  openTickets               Int
+  resolvedTickets           Int
+  avgResponseTime           Float?
+  avgResolutionTime         Float?
+  
+  createdAt                 DateTime  @default(now())
+  
+  @@unique([date])
+  @@map("analytics")
+}
