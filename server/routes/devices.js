@@ -1,8 +1,8 @@
 const express = require('express');
 const { body, query, param } = require('express-validator');
 const { handleValidationErrors } = require('../middleware/validation');
-const prisma = require('../lib/prisma');
 const _ = require('lodash');
+const { getRahulCases } = require('../services/rahulCaseService');
 
 const router = express.Router();
 
@@ -65,117 +65,51 @@ router.get('/', [
 ], async (req, res) => {
   try {
     const { brand, channel, riskLevel, healthScore, search, page = 1, limit = 20 } = req.query;
-    
-    // Build where clause
-    const where = {};
-    
-    if (brand) {
-      where.device_brand = { contains: brand, mode: 'insensitive' };
-    }
-    
-    if (channel) {
-      where.udc_channel = { contains: channel, mode: 'insensitive' };
-    }
-    
-    if (riskLevel) {
-      where.riskLevel = riskLevel;
-    }
-    
-    if (healthScore) {
-      where.healthScore = { lte: parseInt(healthScore) };
-    }
-    
-    if (search) {
-      where.OR = [
-        { device_name: { contains: search, mode: 'insensitive' } },
-        { device_brand: { contains: search, mode: 'insensitive' } },
-        { device_id: { contains: search, mode: 'insensitive' } }
-      ];
-    }
-
-    // Get total count
-    const totalCount = await prisma.device.count({ where });
-    
-    // Get paginated devices
-    const devices = await prisma.device.findMany({
-      where,
-      include: {
-        customer: {
-          select: {
-            name: true,
-            supportLevel: true
-          }
-        }
-      },
-      orderBy: [
-        { riskLevel: 'desc' },
-        { healthScore: 'asc' },
-        { updatedAt: 'desc' }
-      ],
-      skip: (parseInt(page) - 1) * parseInt(limit),
-      take: parseInt(limit)
+    const cases = await getRahulCases();
+    // In-memory filtering
+    let filtered = cases;
+    if (brand) filtered = filtered.filter(d => d.deviceManufacturer?.toLowerCase().includes(brand.toLowerCase()));
+    if (channel) filtered = filtered.filter(d => d.osName?.toLowerCase().includes(channel.toLowerCase()));
+    if (riskLevel) filtered = filtered.filter(d => {
+      if (riskLevel === 'HIGH') return d.riskProbability >= 0.7;
+      if (riskLevel === 'MEDIUM') return d.riskProbability >= 0.4 && d.riskProbability < 0.7;
+      if (riskLevel === 'LOW') return d.riskProbability < 0.4;
+      return true;
     });
-
-    // Calculate statistics
-    const stats = await prisma.device.aggregate({
-      where,
-      _count: {
-        id: true
-      },
-      _avg: {
-        healthScore: true
-      }
+    if (healthScore) filtered = filtered.filter(d => d.riskProbability * 100 <= parseInt(healthScore));
+    if (search) filtered = filtered.filter(d =>
+      d.deviceModel?.toLowerCase().includes(search.toLowerCase()) ||
+      d.deviceId?.toLowerCase().includes(search.toLowerCase()) ||
+      d.employeeName?.toLowerCase().includes(search.toLowerCase())
+    );
+    // Pagination
+    const totalCount = filtered.length;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const paged = filtered.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+    // Stats (example: risk distribution)
+    const riskStats = { high: 0, medium: 0, low: 0 };
+    filtered.forEach(d => {
+      if (d.riskProbability >= 0.7) riskStats.high++;
+      else if (d.riskProbability >= 0.4) riskStats.medium++;
+      else riskStats.low++;
     });
-
-    const riskStats = await prisma.device.groupBy({
-      by: ['riskLevel'],
-      where,
-      _count: {
-        riskLevel: true
-      }
-    });
-
-    const warrantyExpiring = await prisma.device.count({
-      where: {
-        ...where,
-        warrantyStatus: true,
-        warrantyExpiryDate: {
-          gte: new Date(),
-          lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
-        }
-      }
-    });
-
-    const deviceStats = {
-      total: stats._count.id,
-      online: await prisma.device.count({
-        where: {
-          ...where,
-          lastSeen: {
-            gte: new Date(Date.now() - 60 * 60 * 1000) // Last hour
-          }
-        }
-      }),
-      avgHealthScore: Math.round(stats._avg.healthScore || 0),
-      warrantyExpiring,
-      riskDistribution: riskStats.reduce((acc, item) => {
-        acc[item.riskLevel?.toLowerCase() || 'unknown'] = item._count.riskLevel;
-        return acc;
-      }, {})
+    const stats = {
+      total: totalCount,
+      riskDistribution: riskStats
     };
-
     res.json({
       success: true,
-      data: devices,
+      data: paged,
       pagination: {
-        currentPage: parseInt(page),
-        totalPages: Math.ceil(totalCount / parseInt(limit)),
+        currentPage: pageNum,
+        totalPages: Math.ceil(totalCount / limitNum),
         totalItems: totalCount,
-        itemsPerPage: parseInt(limit),
-        hasNextPage: parseInt(page) * parseInt(limit) < totalCount,
-        hasPrevPage: parseInt(page) > 1
+        itemsPerPage: limitNum,
+        hasNextPage: pageNum * limitNum < totalCount,
+        hasPrevPage: pageNum > 1
       },
-      stats: deviceStats,
+      stats,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -213,20 +147,7 @@ router.get('/:id', [
   handleValidationErrors
 ], async (req, res) => {
   try {
-    const device = await prisma.device.findUnique({
-      where: { device_id: req.params.id },
-      include: {
-        customer: true,
-        tickets: {
-          orderBy: { createdAt: 'desc' },
-          take: 10
-        },
-        telemetryData: {
-          orderBy: { timestamp: 'desc' },
-          take: 100
-        }
-      }
-    });
+    const device = await getRahulCases();
     
     if (!device) {
       return res.status(404).json({
@@ -282,9 +203,7 @@ router.get('/:id/telemetry', [
   handleValidationErrors
 ], async (req, res) => {
   try {
-    const device = await prisma.device.findUnique({
-      where: { device_id: req.params.id }
-    });
+    const device = await getRahulCases();
     
     if (!device) {
       return res.status(404).json({
@@ -297,15 +216,7 @@ router.get('/:id/telemetry', [
     const hours = parseInt(req.query.hours) || 24;
     const startTime = new Date(Date.now() - hours * 60 * 60 * 1000);
     
-    const telemetryData = await prisma.telemetryData.findMany({
-      where: {
-        device_id: req.params.id,
-        timestamp: {
-          gte: startTime
-        }
-      },
-      orderBy: { timestamp: 'asc' }
-    });
+    const telemetryData = await getRahulCases();
     
     // Calculate summary statistics
     const summary = {
@@ -345,10 +256,7 @@ router.post('/:id/actions/notify', [
   handleValidationErrors
 ], async (req, res) => {
   try {
-    const device = await prisma.device.findUnique({
-      where: { device_id: req.params.id },
-      include: { customer: true }
-    });
+    const device = await getRahulCases();
     
     if (!device) {
       return res.status(404).json({
@@ -361,21 +269,7 @@ router.post('/:id/actions/notify', [
     const { message, priority = 'MEDIUM', recipients = [] } = req.body;
     
     // Create system event for the notification
-    await prisma.systemEvent.create({
-      data: {
-        type: 'ALERT',
-        title: 'Device Notification Sent',
-        message: `Notification sent for device ${device.device_name}`,
-        details: message,
-        severity: priority,
-        source: 'NOTIFICATION_SYSTEM',
-        metadata: JSON.stringify({
-          device_id: device.device_id,
-          recipients,
-          timestamp: new Date().toISOString()
-        })
-      }
-    });
+    await getRahulCases();
     
     const notification = {
       id: `NOTIF-${Date.now()}`,
@@ -408,58 +302,20 @@ router.post('/:id/actions/notify', [
 // GET /api/v1/devices/stats/summary - Get device statistics summary
 router.get('/stats/summary', async (req, res) => {
   try {
-    const totalDevices = await prisma.device.count();
-    const onlineDevices = await prisma.device.count({
-      where: {
-        lastSeen: {
-          gte: new Date(Date.now() - 60 * 60 * 1000) // Last hour
-        }
-      }
-    });
+    const totalDevices = await getRahulCases();
+    const onlineDevices = await getRahulCases();
 
-    const riskDistribution = await prisma.device.groupBy({
-      by: ['riskLevel'],
-      _count: {
-        riskLevel: true
-      }
-    });
+    const riskDistribution = await getRahulCases();
 
-    const brandDistribution = await prisma.device.groupBy({
-      by: ['device_brand'],
-      _count: {
-        device_brand: true
-      }
-    });
+    const brandDistribution = await getRahulCases();
 
-    const channelDistribution = await prisma.device.groupBy({
-      by: ['udc_channel'],
-      _count: {
-        udc_channel: true
-      }
-    });
+    const channelDistribution = await getRahulCases();
 
-    const healthStats = await prisma.device.aggregate({
-      _avg: { healthScore: true },
-      _min: { healthScore: true },
-      _max: { healthScore: true }
-    });
+    const healthStats = await getRahulCases();
 
-    const warrantyStats = await prisma.device.groupBy({
-      by: ['warrantyStatus'],
-      _count: {
-        warrantyStatus: true
-      }
-    });
+    const warrantyStats = await getRahulCases();
 
-    const expiringSoon = await prisma.device.count({
-      where: {
-        warrantyStatus: true,
-        warrantyExpiryDate: {
-          gte: new Date(),
-          lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        }
-      }
-    });
+    const expiringSoon = await getRahulCases();
 
     const stats = {
       total: totalDevices,

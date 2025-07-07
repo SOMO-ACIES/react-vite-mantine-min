@@ -10,13 +10,71 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Issue {
+  id                    String   @id @default(cuid())
+  item_id               String   @unique
+  dataset_context_id    String
+  dataset_id            String
+  device_context_id     String
+  device_id             String
+  item_context_id       String
+  issue_status          String
+  issue_title           String
+  issue_type_id         String
+  item_name             String
+  timestamp             String
+  report_time           String
+  schema_ver            String
+  subscription_id       String
+  subscription_ids      String
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  // Relations
+  device                Device   @relation(fields: [device_id], references: [device_id])
+  
+  @@map("issues")
+}
+
+model Customer {
+  id                           String    @id @default(cuid())
+  customer_id                  String    @unique
+  customer_name                String
+  customer_location_country    String
+  customer_location_state      String
+  customer_email               String
+  customer_phone               String
+  created_at                   String
+  updated_at                   String
+  
+  // Additional fields for dashboard functionality
+  name                         String?   // Alias for customer_name for compatibility
+  contact                      String?   // Contact person name
+  email                        String?   // Alias for customer_email
+  phone                        String?   // Alias for customer_phone
+  location                     String?   // Combined location info
+  supportLevel                 String @default("BASIC")
+  deviceCount                  Int       @default(0)
+  contractStart                DateTime?
+  contractEnd                  DateTime?
+  accountManager               String?
+  status                       String @default("ACTIVE")
+  
+  // Relations
+  devices                      Device[]
+  tickets                      Ticket[]
+  
+  @@map("customers")
+}
+
 model Device {
   id                        String   @id @default(cuid())
   device_id                 String   @unique
   customer_id               String
   context_id                String
   dataset_id                String
-  device_context_datetime   DateTime
+  device_context_datetime   String
   device_context_id         String
   device_bios_version       String
   device_brand              String
@@ -24,11 +82,11 @@ model Device {
   device_enclosuretype      String
   device_family             String
   device_id2                String
-  device_info_datetime      DateTime
+  device_info_datetime      String
   device_manufacturer       String
   device_modeltype          String
   device_name               String
-  device_purchase_date      DateTime
+  device_purchase_date      String
   device_smbios_version     String
   device_subbrand           String
   os_country                String
@@ -41,22 +99,24 @@ model Device {
   country_name              String
   language_code             String
   language_name             String
-  region_info_datetime      DateTime
+  region_info_datetime      String
   region_name               String
-  report_time               DateTime
+  report_time               String
   schema_ver                String
   subscription_id           String
   subscription_ids          String
   udc_channel               String
   udc_id                    String
-  udc_info_datetime         DateTime
+  udc_info_datetime         String
   udc_key                   String
   udc_name                  String
   udc_version               String
+  employee_id               String
+  department                String
   
-  // Computed fields
+  // Computed fields for dashboard functionality
   healthScore               Int?
-  riskLevel                 String
+  riskLevel                 String?
   lastSeen                  DateTime?
   warrantyStatus            Boolean   @default(false)
   warrantyExpiryDate        DateTime?
@@ -74,34 +134,10 @@ model Device {
   // Relations
   customer                  Customer  @relation(fields: [customer_id], references: [customer_id])
   tickets                   Ticket[]
+  issues                    Issue[]
   telemetryData             TelemetryData[]
   
   @@map("devices")
-}
-
-model Customer {
-  id                        String    @id @default(cuid())
-  customer_id               String    @unique
-  name                      String
-  contact                   String
-  email                     String?
-  phone                     String?
-  location                  String
-  supportLevel              String
-  deviceCount               Int       @default(0)
-  contractStart             DateTime?
-  contractEnd               DateTime?
-  accountManager            String?
-  status                    String @default("ACTIVE")
-  
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime  @updatedAt
-  
-  // Relations
-  devices                   Device[]
-  tickets                   Ticket[]
-  
-  @@map("customers")
 }
 
 model Ticket {
