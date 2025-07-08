@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   IconActivity,
   IconBrain,
+  IconCheck,
   IconCopy,
   IconDevices,
   IconExclamationMark,
@@ -31,7 +32,7 @@ import {
 import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
 import { showNotification } from '@mantine/notifications';
-import { getDevices } from '../../api';
+import { getDevices, getRahulLogs, RahulLogRoot } from '../../api';
 
 import './Dashboard.module.css';
 import 'mantine-datatable/styles.css';
@@ -56,6 +57,10 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [rahulLogs, setRahulLogs] = useState<RahulLogRoot[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [logsError, setLogsError] = useState<string | null>(null);
 
   const ticketForm = useForm({
     initialValues: {
@@ -106,6 +111,23 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
     // eslint-disable-next-line
   }, [locationFilter, brandFilter, searchTerm, deviceTab, activePage, allDevicesPage]);
 
+  // Fetch Rahul logs for AI Agent Live Feed
+  useEffect(() => {
+    async function fetchLogs() {
+      setLogsLoading(true);
+      setLogsError(null);
+      try {
+        const res = await getRahulLogs({ limit: 20 });
+        setRahulLogs(res.data || []);
+      } catch (err: any) {
+        setLogsError(err.message || 'Failed to load logs');
+      } finally {
+        setLogsLoading(false);
+      }
+    }
+    fetchLogs();
+  }, []);
+
   const handleDeviceView = (device: Device) => {
     setSelectedDevice(device);
     open();
@@ -115,17 +137,6 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
     const subject = `Device Alert: ${selectedDevice?.device_name}`;
     const body = `Device ${selectedDevice?.device_name} (${selectedDevice?.device_modeltype}) requires attention.\n\nSerial: ${selectedDevice?.device_id}\nBrand: ${selectedDevice?.device_brand}\nLocation: ${selectedDevice?.region_name}`;
     window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`);
-  };
-
-  // For demonstration, let's define a simple risk and health score logic
-  const getRiskLevel = (device: Device) => {
-    if (device.device_enclosuretype === 'Laptop' && device.device_bios_version < '2.0.0') {
-      return 'High';
-    }
-    if (device.device_enclosuretype === 'Desktop') {
-      return 'Medium';
-    }
-    return 'Low';
   };
 
   // Calculate Failure Probability (0-100) based on device age, bios version, and a random factor
@@ -166,161 +177,43 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
   // Filtering logic
   const filteredDevices = devices.filter((device) => {
     const locationMatch =
-      locationFilter === 'All Locations' || device.region_name === locationFilter;
-    const brandMatch = brandFilter === 'All Brands' || device.device_brand === brandFilter;
-    const nameMatch = device.device_name.toLowerCase().includes(searchTerm.toLowerCase());
+      locationFilter === 'All Locations' ||
+      (device.employeeLocationState?.toLowerCase() || '') === locationFilter.toLowerCase();
+    const brandMatch =
+      brandFilter === 'All Brands' ||
+      (device.deviceManufacturer?.toLowerCase() || '') === brandFilter.toLowerCase();
+    const nameMatch =
+      (device.deviceModel?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (device.deviceId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (device.employeeName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
     return locationMatch && brandMatch && nameMatch;
   });
 
   // Sorting logic
   const sortedDevices = [...filteredDevices].sort((a, b) => {
     if (sortBy === 'failureProbability') {
-      const fa = getFailureProbability(a);
-      const fb = getFailureProbability(b);
+      const fa = Math.round((a.riskProbability || 0) * 100);
+      const fb = Math.round((b.riskProbability || 0) * 100);
       return sortDir === 'desc' ? fb - fa : fa - fb;
     }
-    const da = new Date(a.device_context_datetime || 0).getTime();
-    const db = new Date(b.device_context_datetime || 0).getTime();
+    const da = new Date(a.updatedAt || 0).getTime();
+    const db = new Date(b.updatedAt || 0).getTime();
     return sortDir === 'desc' ? db - da : da - db;
   });
 
-  // For at-risk, use our getRiskLevel logic
+  // For at-risk, use riskProbability
   const atRiskDevices = sortedDevices.filter(
-    (device) => getRiskLevel(device) === 'High' || getRiskLevel(device) === 'Medium'
+    (device) => (device.riskProbability || 0) >= 0.4 // 40% and above is at risk
   );
 
   // For filter dropdowns
   const locationOptions = [
     'All Locations',
-    ...Array.from(new Set(devices.map((d) => d.region_name))).sort(),
+    ...Array.from(new Set(devices.map((d) => d.employeeLocationState).filter(Boolean))).sort(),
   ];
   const brandOptions = [
     'All Brands',
-    ...Array.from(new Set(devices.map((d) => d.device_brand))).sort(),
-  ];
-
-  // Demo notifications/events (unchanged)
-  const consoleNotifications = [
-    {
-      id: 1,
-      timestamp: '14:23:18',
-      type: 'info',
-      message: 'AI Agent started device analysis for 1,200 devices.',
-    },
-    {
-      id: 2,
-      timestamp: '14:23:17',
-      type: 'success',
-      message: 'Ticket #55901 created for device 63f1b3d9d54a (Battery health warning).',
-    },
-    {
-      id: 3,
-      timestamp: '14:23:16',
-      type: 'warning',
-      message: 'Battery health below threshold on device 82f7d9e5a3c2 (Cycle count: 1,200).',
-    },
-    {
-      id: 4,
-      timestamp: '14:23:15',
-      type: 'info',
-      message: 'AI Agent completed anomaly detection for 1,200 devices.',
-    },
-    {
-      id: 5,
-      timestamp: '14:23:14',
-      type: 'warning',
-      message: 'Device 10e3ac847b reported battery temperature spike (45°C).',
-    },
-    {
-      id: 6,
-      timestamp: '14:23:13',
-      type: 'info',
-      message: 'Device health check completed for device 2483dks837.',
-    },
-    {
-      id: 7,
-      timestamp: '14:23:12',
-      type: 'success',
-      message: 'Ticket #55902 created for device 8129djsk48 (Performance issue).',
-    },
-    {
-      id: 8,
-      timestamp: '14:23:11',
-      type: 'warning',
-      message: 'Battery replacement recommended for device a87fd2309b.',
-    },
-    {
-      id: 9,
-      timestamp: '14:23:10',
-      type: 'info',
-      message: 'AI Agent is monitoring battery metrics for all laptops.',
-    },
-    {
-      id: 10,
-      timestamp: '14:23:09',
-      type: 'info',
-      message: 'Device 47dfk2847c passed all health checks.',
-    },
-    {
-      id: 11,
-      timestamp: '14:23:08',
-      type: 'warning',
-      message: 'Device 22dbfa2384: Battery charge cycles exceeded safe limit.',
-    },
-    {
-      id: 12,
-      timestamp: '14:23:07',
-      type: 'info',
-      message: 'AI Agent initiated firmware update on 50 devices.',
-    },
-    {
-      id: 13,
-      timestamp: '14:23:06',
-      type: 'success',
-      message: 'Ticket #55903 created for device 22dbfa2384 (Battery replacement scheduled).',
-    },
-    {
-      id: 14,
-      timestamp: '14:23:05',
-      type: 'info',
-      message: 'AI Agent is learning from new device telemetry patterns.',
-    },
-    {
-      id: 15,
-      timestamp: '14:23:04',
-      type: 'warning',
-      message: 'Device 1098dfkd92: Sudden battery drain detected.',
-    },
-    {
-      id: 16,
-      timestamp: '14:23:03',
-      type: 'info',
-      message: 'AI Agent is optimizing device scan intervals.',
-    },
-    {
-      id: 17,
-      timestamp: '14:23:02',
-      type: 'info',
-      message: 'Device 8129djsk48: No battery issues detected.',
-    },
-    {
-      id: 18,
-      timestamp: '14:23:01',
-      type: 'info',
-      message: 'AI Agent is preparing daily device health report.',
-    },
-    {
-      id: 19,
-      timestamp: '14:23:00',
-      type: 'info',
-      message: 'All device logs synchronized with central server.',
-    },
-    {
-      id: 20,
-      timestamp: '14:22:59',
-      type: 'info',
-      message: 'AI Agent is ready for new device onboarding.',
-    },
+    ...Array.from(new Set(devices.map((d) => d.deviceManufacturer).filter(Boolean))).sort(),
   ];
   const aiErrorEvents = [
     {
@@ -432,6 +325,8 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
   // Handler to copy device ID to clipboard
   const handleCopyDeviceId = (deviceId: string) => {
     navigator.clipboard.writeText(deviceId);
+    setCopiedId(deviceId);
+    setTimeout(() => setCopiedId(null), 1500);
   };
 
   return (
@@ -594,29 +489,54 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                   render: (device: Device) => (
                     <Stack gap={0} className="dashboard-table-device-stack">
                       <Text size="sm" fw={500} className="dashboard-table-device-name">
-                        {device.device_name}
+                        {device.deviceModel}
                       </Text>
-                      <Text size="xs" c="dimmed">
-                        {device.device_modeltype}
-                      </Text>
+                      <Group gap={4}>
+                        <Text size="xs" c="dimmed">
+                          {device.deviceId}
+                        </Text>
+                        <ActionIcon
+                          size="xs"
+                          variant="subtle"
+                          onClick={() => handleCopyDeviceId(device.deviceId)}
+                          title="Copy Device ID"
+                        >
+                          {copiedId === device.deviceId ? (
+                            <IconCheck size={14} color="green" />
+                          ) : (
+                            <IconCopy size={14} />
+                          )}
+                        </ActionIcon>
+                      </Group>
                     </Stack>
                   ),
                 },
                 {
-                  accessor: 'department',
-                  title: 'Department',
+                  accessor: 'location',
+                  title: 'Location',
+                  render: (device: Device) => (
+                    <Text size="sm">
+                      {device.employeeLocationState && device.employeeLocationCountry
+                        ? `${device.employeeLocationState}, ${device.employeeLocationCountry}`
+                        : device.employeeLocationState || device.employeeLocationCountry || '-'}
+                    </Text>
+                  ),
+                },
+                {
+                  accessor: 'employee',
+                  title: 'Employee',
                   render: (device: Device) => (
                     <Text size="sm" className="dashboard-table-location">
-                      {device.department}
+                      {device.employeeName}
                     </Text>
                   ),
                 },
                 {
                   accessor: 'failureProbability',
-                  title: 'Failure Probability',
+                  title: 'Risk Probability',
                   sortable: true,
                   render: (device: Device) => {
-                    const probability = getFailureProbability(device);
+                    const probability = Math.round((device.riskProbability || 0) * 100);
                     return (
                       <Group gap="xs">
                         <RingProgress
@@ -638,13 +558,11 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                 },
                 {
                   accessor: 'lastSeen',
-                  title: 'Last Seen',
+                  title: 'Last Updated',
                   sortable: true,
                   render: (device: Device) => (
                     <Text size="sm" className="dashboard-table-lastseen">
-                      {device.device_context_datetime
-                        ? new Date(device.device_context_datetime).toLocaleString()
-                        : '-'}
+                      {device.updatedAt ? new Date(device.updatedAt).toLocaleString() : '-'}
                     </Text>
                   ),
                 },
@@ -726,27 +644,52 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                   render: (device: Device) => (
                     <Stack gap={0} className="dashboard-table-device-stack">
                       <Text size="sm" fw={500} className="dashboard-table-device-name">
-                        {device.device_name}
+                        {device.deviceModel}
                       </Text>
-                      <Text size="xs" c="dimmed">
-                        {device.device_modeltype}
-                      </Text>
+                      <Group gap={4}>
+                        <Text size="xs" c="dimmed">
+                          {device.deviceId}
+                        </Text>
+                        <ActionIcon
+                          size="xs"
+                          variant="subtle"
+                          onClick={() => handleCopyDeviceId(device.deviceId)}
+                          title="Copy Device ID"
+                        >
+                          {copiedId === device.deviceId ? (
+                            <IconCheck size={14} color="green" />
+                          ) : (
+                            <IconCopy size={14} />
+                          )}
+                        </ActionIcon>
+                      </Group>
                     </Stack>
                   ),
                 },
                 {
-                  accessor: 'department',
-                  title: 'Department',
+                  accessor: 'location',
+                  title: 'Location',
                   render: (device: Device) => (
-                    <Text className="dashboard-table-location">{device.department}</Text>
+                    <Text size="sm">
+                      {device.employeeLocationState && device.employeeLocationCountry
+                        ? `${device.employeeLocationState}, ${device.employeeLocationCountry}`
+                        : device.employeeLocationState || device.employeeLocationCountry || '-'}
+                    </Text>
+                  ),
+                },
+                {
+                  accessor: 'employee',
+                  title: 'Employee',
+                  render: (device: Device) => (
+                    <Text className="dashboard-table-location">{device.employeeName}</Text>
                   ),
                 },
                 {
                   accessor: 'failureProbability',
-                  title: 'Failure Probability',
+                  title: 'Risk Probability',
                   sortable: true,
                   render: (device: Device) => {
-                    const probability = getFailureProbability(device);
+                    const probability = Math.round((device.riskProbability || 0) * 100);
                     return (
                       <Group gap="xs">
                         <RingProgress
@@ -768,13 +711,11 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                 },
                 {
                   accessor: 'lastSeen',
-                  title: 'Last Seen',
+                  title: 'Last Updated',
                   sortable: true,
                   render: (device: Device) => (
                     <Text size="sm" className="dashboard-table-lastseen">
-                      {device.device_context_datetime
-                        ? new Date(device.device_context_datetime).toLocaleString()
-                        : '-'}
+                      {device.updatedAt ? new Date(device.updatedAt).toLocaleString() : '-'}
                     </Text>
                   ),
                 },
@@ -844,13 +785,26 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
             </Group>
             <ScrollArea h={400} className="dashboard-ai-console-scrollarea">
               <div className="dashboard-ai-console-log">
-                {consoleNotifications.map((notification) => (
-                  <div key={notification.id} className="dashboard-ai-console-log-entry">
+                {logsLoading && <Text c="dimmed">Loading logs...</Text>}
+                {logsError && <Text c="red">{logsError}</Text>}
+                {rahulLogs.map((log) => (
+                  <div key={log.id} className="dashboard-ai-console-log-entry">
                     <span className="dashboard-ai-console-log-timestamp">
-                      [{notification.timestamp}]
+                      [{new Date(log.timestamp).toLocaleTimeString()}]
                     </span>{' '}
-                    <span style={{ color: getConsoleColor(notification.type) }}>
-                      {notification.message}
+                    <span
+                      style={{
+                        color:
+                          log.log_level === 'WARNING'
+                            ? '#f59e0b'
+                            : log.log_level === 'INFO'
+                              ? '#3b82f6'
+                              : log.log_level === 'ERROR'
+                                ? '#ef4444'
+                                : '#6b7280',
+                      }}
+                    >
+                      [{log.log_level}] {log.message}
                     </span>
                   </div>
                 ))}
@@ -918,7 +872,11 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                         onClick={() => handleCopyDeviceId(event.deviceId)}
                         title="Copy Device ID"
                       >
-                        <IconCopy size={14} />
+                        {copiedId === event.deviceId ? (
+                          <IconCheck size={14} color="green" />
+                        ) : (
+                          <IconCopy size={14} />
+                        )}
                       </ActionIcon>
                       <Text size="xs" c="dimmed">
                         {event.deviceId}
@@ -936,7 +894,11 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
       <Modal
         opened={opened}
         onClose={close}
-        title={selectedDevice ? `${selectedDevice.device_name} - Details` : ''}
+        title={
+          selectedDevice
+            ? `${selectedDevice.deviceModel || selectedDevice.deviceId || 'Device'} - Details`
+            : ''
+        }
         size="xl"
         className="dashboard-device-modal"
       >
@@ -949,16 +911,42 @@ const RahulDashboard: React.FC<RahulDashboardProps> = () => {
                     Device Information
                   </Text>
                   <Text size="sm" className="dashboard-device-info-model">
-                    <strong>Model:</strong> {selectedDevice.device_modeltype}
+                    <strong>Model:</strong> {selectedDevice.deviceModel}
                   </Text>
                   <Text size="sm" className="dashboard-device-info-serial">
-                    <strong>Serial:</strong> {selectedDevice.device_id}
+                    <strong>Serial:</strong> {selectedDevice.deviceId}
+                    <ActionIcon
+                      size="xs"
+                      variant="subtle"
+                      onClick={() => handleCopyDeviceId(selectedDevice.deviceId)}
+                      title="Copy Device ID"
+                      ml={6}
+                    >
+                      {copiedId === selectedDevice.deviceId ? (
+                        <IconCheck size={14} color="green" />
+                      ) : (
+                        <IconCopy size={14} />
+                      )}
+                    </ActionIcon>
                   </Text>
                   <Text size="sm" className="dashboard-device-info-customer">
-                    <strong>Employee:</strong> {selectedDevice.employee_id}
+                    <strong>Employee:</strong> {selectedDevice.employeeId}
                   </Text>
                   <Text size="sm" className="dashboard-device-info-location">
-                    <strong>Location:</strong> {selectedDevice.region_name}
+                    <strong>Location:</strong>{' '}
+                    {selectedDevice.employeeLocationState && selectedDevice.employeeLocationCountry
+                      ? `${selectedDevice.employeeLocationState}, ${selectedDevice.employeeLocationCountry}`
+                      : selectedDevice.employeeLocationState ||
+                        selectedDevice.employeeLocationCountry ||
+                        '-'}
+                  </Text>
+                  <Text size="sm" className="dashboard-device-info-location-details">
+                    <strong>Employee Location:</strong>{' '}
+                    {selectedDevice.employeeLocationState && selectedDevice.employeeLocationCountry
+                      ? `${selectedDevice.employeeLocationState}, ${selectedDevice.employeeLocationCountry}`
+                      : selectedDevice.employeeLocationState ||
+                        selectedDevice.employeeLocationCountry ||
+                        '-'}
                   </Text>
                 </Stack>
               </Grid.Col>

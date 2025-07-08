@@ -14,6 +14,7 @@ const ticketRoutes = require('./routes/tickets');
 const customerRoutes = require('./routes/customers');
 const analyticsRoutes = require('./routes/analytics');
 const healthRoutes = require('./routes/health');
+const rahulLogsRoutes = require('./routes/rahulLogs');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -67,6 +68,7 @@ app.use(`${apiBase}/tickets`, ticketRoutes);
 app.use(`${apiBase}/customers`, customerRoutes);
 app.use(`${apiBase}/analytics`, analyticsRoutes);
 app.use(`${apiBase}/health`, healthRoutes);
+app.use(`${apiBase}/rahulLogs`, rahulLogsRoutes);
 
 // Swagger setup
 const swaggerOptions = {
